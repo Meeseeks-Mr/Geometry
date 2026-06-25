@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
+<title>Dimensions &amp; Geometry Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito+Sans:wght@400;600;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================= TOKENS */
+:root{
+  --axis-x:#FF3B5C; --axis-y:#2EE6A6; --axis-z:#3B9CFF;
+  --origin-gold:#FFC94A; --equation-neon:#C77DFF;
+  --r:16px; --rp:20px;
+  --ff-display:'Fredoka',system-ui,sans-serif;
+  --ff-ui:'Nunito Sans',system-ui,sans-serif;
+  --ff-mono:'JetBrains Mono',ui-monospace,monospace;
+  --ease-mac:cubic-bezier(.4,0,.2,1);
+  /* theme (Cosmos default) */
+  --bg0:#05060F; --bg1:#0b0a1e;
+  --glass:rgba(14,12,30,.45); --blur:22px;
+  --txt:#F4F1FF; --txt2:#b9b2d6; --surf2:#13102A;
+  --edge:rgba(199,125,255,.35);
+}
+[data-theme="light"]{ --bg0:#F7F8FC; --bg1:#ECEEF7; --glass:rgba(255,255,255,.6); --blur:18px; --txt:#1B1E2B; --txt2:#5a5f72; --surf2:#FFFFFF; --edge:rgba(0,0,0,.06); }
+[data-theme="dark"]{ --bg0:#0E1018; --bg1:#171A26; --glass:rgba(24,26,38,.55); --blur:18px; --txt:#F1F2F8; --txt2:#9aa0b5; --surf2:#1E2130; --edge:rgba(255,255,255,.08); }
+[data-theme="cosmos"]{ --bg0:#05060F; --bg1:#0b0a1e; --glass:rgba(14,12,30,.45); --blur:22px; --txt:#F4F1FF; --txt2:#b9b2d6; --surf2:#13102A; --edge:rgba(199,125,255,.35); }
+/* Pencil & Paper: warm graph-paper ground, graphite ink, axes read as colored pencils */
+[data-theme="paper"]{ --bg0:#EAE0C8; --bg1:#F6F0DE; --glass:rgba(251,247,236,.82); --blur:3px; --txt:#2C2A24; --txt2:#6f6a58; --surf2:#FBF8EF; --edge:rgba(44,42,36,.32); }
+
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;height:100%;overflow:hidden;font-family:var(--ff-ui);color:var(--txt);background:var(--bg0);}
+body{ background:radial-gradient(120% 120% at 50% 30%, var(--bg1), var(--bg0) 75%); transition:background .6s var(--ease-mac),color .6s var(--ease-mac); user-select:none; touch-action:none;}
+/* graph-paper grid for the pencil-and-paper theme */
+body[data-theme="paper"]{ background:
+  repeating-linear-gradient(0deg, transparent 0 23px, rgba(86,116,168,.14) 23px 24px),
+  repeating-linear-gradient(90deg, transparent 0 23px, rgba(86,116,168,.14) 23px 24px),
+  radial-gradient(120% 120% at 50% 30%, var(--bg1), var(--bg0) 90%); }
+body[data-theme="paper"] .glass{ box-shadow:0 2px 0 rgba(44,42,36,.12), inset 0 0 0 1px rgba(44,42,36,.10); }
+body[data-theme="paper"] #sig{ font-style:italic; }
+#app{position:fixed;inset:0;}
+canvas{display:block;}
+#three{position:absolute;inset:0;z-index:0;}
+
+/* ============================================================= GLASS PANELS */
+.glass{
+  position:absolute; z-index:5;
+  background:var(--glass);
+  -webkit-backdrop-filter:blur(var(--blur)) saturate(1.3); backdrop-filter:blur(var(--blur)) saturate(1.3);
+  border:1px solid var(--edge);
+  border-radius:var(--rp);
+  box-shadow:0 10px 40px rgba(0,0,0,.35), inset 0 2px 0 rgba(255,255,255,.18);
+  padding:14px 16px;
+}
+.glass h2{font-family:var(--ff-display);font-weight:600;font-size:20px;line-height:24px;margin:0 0 8px;}
+.cap{font-weight:600;font-size:13px;letter-spacing:.02em;color:var(--txt2);}
+.terms{margin-top:9px;padding-top:9px;border-top:1px solid var(--edge);font-family:var(--ff-ui);font-weight:600;font-size:12px;line-height:1.55;color:var(--txt2);}
+.terms b{color:var(--txt);font-weight:800;}
+
+/* breadcrumb */
+#breadcrumb{top:14px;left:14px;display:flex;gap:6px;align-items:center;border-radius:999px;padding:8px 14px;font-weight:800;font-size:14px;}
+#breadcrumb .seg{opacity:.4;transition:opacity .4s;} #breadcrumb .seg.on{opacity:1;color:var(--origin-gold);}
+#breadcrumb .sep{opacity:.3;font-weight:400;}
+
+/* top-right controls */
+#topctl{top:14px;right:14px;display:flex;gap:8px;padding:8px;border-radius:999px;}
+.icbtn{width:44px;height:44px;border-radius:50%;border:none;background:transparent;color:var(--txt);font-size:18px;cursor:pointer;display:grid;place-items:center;transition:transform .15s var(--ease-mac),background .2s;}
+.icbtn:hover{background:rgba(255,255,255,.1);} .icbtn:active{transform:scale(.9);}
+.icbtn.on{background:var(--origin-gold);color:#1B1E2B;}
+
+/* mode toggle pill (binary state => true pill) */
+#modepill{top:74px;left:50%;transform:translateX(-50%);display:flex;border-radius:999px;padding:4px;gap:2px;}
+#modepill button{border:none;background:transparent;color:var(--txt2);font-family:var(--ff-ui);font-weight:800;font-size:14px;padding:8px 18px;border-radius:999px;cursor:pointer;min-height:40px;transition:.25s var(--ease-mac);}
+#modepill button.on{background:var(--equation-neon);color:#fff;}
+
+/* live math (bottom-left) */
+#livemath{left:14px;bottom:120px;width:230px;}
+#livemath .row{font-family:var(--ff-mono);font-size:16px;margin:3px 0;color:var(--txt);}
+#livemath .row b{color:var(--equation-neon);}
+
+/* equation panel (bottom-right) */
+#eqpanel{right:14px;bottom:120px;width:260px;}
+#eqpanel input{width:100%;font-family:var(--ff-mono);font-size:15px;padding:10px;border-radius:12px;border:1px solid var(--edge);background:var(--surf2);color:var(--txt);outline:none;transition:border-color .2s;}
+#eqpanel input.bad{border-color:#E8A33D;}
+#eqpanel .hint{font-size:12px;color:var(--txt2);margin-top:6px;}
+
+/* dimension dock (bottom-center) */
+#dock{left:50%;transform:translateX(-50%);bottom:16px;z-index:6;display:inline-flex;justify-content:center;gap:10px;padding:8px;border-radius:24px;white-space:nowrap;}
+.card{min-width:76px;height:72px;border-radius:var(--r);border:1px solid var(--edge);background:var(--surf2);color:var(--txt);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:4px;font-family:var(--ff-ui);font-weight:800;font-size:13px;padding:6px 12px;transition:.3s var(--ease-mac);box-shadow:inset 0 2px 0 rgba(255,255,255,.12);}
+.card .ico{font-size:22px;line-height:1;}
+.card.on{background:var(--origin-gold);color:#1B1E2B;transform:translateY(-6px) scale(1.06);}
+.card:active{transform:scale(.95);}
+
+/* coordinate bubble (follows sphere) */
+#coord{position:absolute;z-index:4;pointer-events:none;font-family:var(--ff-mono);font-weight:600;font-size:18px;padding:6px 12px;border-radius:999px;background:var(--glass);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid var(--edge);white-space:nowrap;transform:translate(-50%,-150%);transition:opacity .3s;}
+#coord .ch{display:inline-block;}
+
+/* celebration label */
+#celebrate{position:absolute;z-index:7;left:50%;top:42%;transform:translate(-50%,-50%);font-family:var(--ff-display);font-weight:700;font-size:clamp(22px,4vw,40px);color:var(--origin-gold);pointer-events:none;opacity:0;text-shadow:0 2px 20px rgba(255,201,74,.6);}
+
+/* unit-circle / mini inset host */
+#inset{right:14px;top:92px;width:168px;height:168px;padding:8px;display:none;}
+#inset canvas{width:100%;height:100%;border-radius:12px;}
+#inset .vals{position:absolute;left:12px;bottom:10px;font-family:var(--ff-mono);font-size:12px;line-height:16px;}
+
+/* on-canvas terminology bubble — names what you see, anchored to the object */
+#termbubble{position:absolute;z-index:4;pointer-events:none;white-space:nowrap;opacity:0;
+  font-family:var(--ff-display);font-weight:600;font-size:14px;padding:5px 12px;border-radius:999px;
+  transform:translate(-50%,-50%);background:var(--glass);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  border:1px solid var(--edge);color:var(--equation-neon);box-shadow:0 4px 16px rgba(0,0,0,.3);transition:opacity .25s;}
+
+/* ghost hint */
+#ghost{position:absolute;z-index:4;left:50%;top:54%;transform:translate(-50%,-50%);font-family:var(--ff-display);font-weight:600;font-size:22px;color:var(--txt2);pointer-events:none;transition:opacity .6s;}
+
+/* tool row (per-mode controls, bottom-left above livemath) */
+#tools{left:14px;bottom:14px;display:flex;gap:6px;flex-wrap:wrap;max-width:46vw;padding:8px;border-radius:18px;z-index:6;}
+.tgl{border:1px solid var(--edge);background:var(--surf2);color:var(--txt);font-family:var(--ff-ui);font-weight:800;font-size:12px;padding:8px 12px;border-radius:12px;min-height:40px;cursor:pointer;transition:.2s;}
+.tgl.on{background:var(--equation-neon);color:#fff;}
+.explorer-only{display:none;}
+body.explorer .explorer-only{display:inline-flex;}
+
+/* mobile-only chrome (hidden on desktop) */
+#sheet{display:none;}
+#menubtn,#mobrand,#leftmenu,#menuscrim,#infobar{display:none;}
+
+/* ===== mobile / tablet : bottom info bar + collapsible LEFT menu ===== */
+@media (max-width:1024px){
+  #livemath,#eqpanel,#inset,#tools,#sig,#sheet,#breadcrumb,#modepill{display:none!important;}
+  #topctl{top:calc(8px + env(safe-area-inset-top));right:10px;padding:5px;gap:4px;}
+  #topctl .icbtn{width:42px;height:42px;font-size:16px;}
+
+  /* hamburger + persistent wordmark, top-left */
+  #menubtn{display:grid;place-items:center;position:fixed;z-index:14;top:calc(8px + env(safe-area-inset-top));left:10px;
+    width:44px;height:44px;border-radius:14px;border:1px solid var(--edge);background:var(--glass);
+    -webkit-backdrop-filter:blur(var(--blur));backdrop-filter:blur(var(--blur));color:var(--txt);font-size:20px;cursor:pointer;}
+  #mobrand{display:block;position:fixed;z-index:13;top:calc(16px + env(safe-area-inset-top));left:50%;transform:translateX(-50%);
+    font-family:var(--ff-display);font-weight:700;font-size:20px;letter-spacing:-.01em;
+    background:linear-gradient(120deg,var(--origin-gold),var(--axis-x) 60%,var(--equation-neon));
+    -webkit-background-clip:text;background-clip:text;color:transparent;pointer-events:none;}
+
+  /* left drawer */
+  #menuscrim{display:block;position:fixed;inset:0;z-index:19;background:rgba(0,0,0,.4);opacity:0;pointer-events:none;transition:opacity .3s;}
+  #menuscrim.open{opacity:1;pointer-events:auto;}
+  #leftmenu{display:flex;flex-direction:column;position:fixed;z-index:20;top:0;bottom:0;left:0;width:min(82vw,330px);
+    padding:18px 18px calc(18px + env(safe-area-inset-bottom));overflow-y:auto;
+    background:var(--glass);-webkit-backdrop-filter:blur(var(--blur)) saturate(1.3);backdrop-filter:blur(var(--blur)) saturate(1.3);
+    border-right:1px solid var(--edge);box-shadow:8px 0 44px rgba(0,0,0,.4);
+    transform:translateX(-104%);transition:transform .35s var(--ease-mac);}
+  #menuclose{position:absolute;top:18px;right:18px;width:32px;height:32px;border-radius:50%;border:none;background:var(--surf2);color:var(--txt);font-size:16px;cursor:pointer;display:grid;place-items:center;}
+  .lm-section{padding-bottom:20px;margin-bottom:20px;border-bottom:1px solid var(--edge);}
+  .lm-section:last-child{border-bottom:none;}
+  #leftmenu.open{transform:translateX(0);}
+  #leftmenu .lm-head .mk{display:block;font-family:var(--ff-display);font-weight:700;font-size:30px;
+    background:linear-gradient(120deg,var(--origin-gold),var(--axis-x) 55%,var(--equation-neon));-webkit-background-clip:text;background-clip:text;color:transparent;}
+  #leftmenu .lm-head .by{display:block;font-family:var(--ff-ui);font-weight:800;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--txt2);margin-top:2px;}
+  #leftmenu .lm-title{font-family:var(--ff-ui);font-weight:800;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--txt2);margin-bottom:8px;}
+  .modepill2{display:flex;gap:6px;background:var(--surf2);border:1px solid var(--edge);border-radius:14px;padding:4px;}
+  .modepill2 button{flex:1;min-height:44px;border:none;background:transparent;color:var(--txt2);font-family:var(--ff-ui);font-weight:800;font-size:14px;border-radius:11px;cursor:pointer;}
+  .modepill2 button.on{background:var(--equation-neon);color:#fff;}
+  #menu-tools{display:flex;flex-wrap:wrap;gap:8px;}
+  #menu-tools .tgl{min-height:46px;font-size:13px;}
+  #leftmenu input{width:100%;font-family:var(--ff-mono);font-size:16px;padding:12px;border-radius:12px;border:1px solid var(--edge);background:var(--surf2);color:var(--txt);}
+
+  /* dock: centered when it fits, scrolls when it doesn't (margin-auto trick avoids empty right gap) */
+  #dock{left:0;right:0;transform:none;bottom:calc(70px + env(safe-area-inset-bottom));margin:0 auto;
+    width:max-content;max-width:calc(100% - 20px);justify-content:flex-start;overflow-x:auto;overflow-y:visible;flex-wrap:nowrap;
+    background:transparent;border:none;box-shadow:none;-webkit-backdrop-filter:none;backdrop-filter:none;border-radius:0;
+    padding:4px 6px;gap:8px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;}
+  #dock::-webkit-scrollbar{display:none;}
+  .card{flex:0 0 auto;scroll-snap-align:center;background:var(--glass);-webkit-backdrop-filter:blur(var(--blur));backdrop-filter:blur(var(--blur));}
+  #coord{font-size:15px;}
+
+  /* persistent bottom info bar (live values + terminology) */
+  #infobar{display:flex;align-items:center;justify-content:center;gap:14px;position:fixed;z-index:11;left:0;right:0;bottom:0;
+    min-height:58px;padding:8px 16px calc(8px + env(safe-area-inset-bottom));
+    background:var(--glass);-webkit-backdrop-filter:blur(var(--blur)) saturate(1.3);backdrop-filter:blur(var(--blur)) saturate(1.3);
+    border-top:1px solid var(--edge);overflow-x:auto;white-space:nowrap;}
+  #infobar::-webkit-scrollbar{display:none;}
+  #infobar .ibv{font-family:var(--ff-mono);font-weight:600;font-size:18px;color:var(--txt);}
+  #infobar .ibt{font-family:var(--ff-display);font-weight:600;font-size:14px;color:var(--equation-neon);
+    border-left:1px solid var(--edge);padding-left:14px;}
+}
+@media (max-width:600px){
+  .card{min-width:62px;height:58px;font-size:11px;padding:5px 8px;} .card .ico{font-size:18px;}
+  #mobrand{font-size:17px;}
+}
+@media (min-width:1025px) and (max-width:1439px){
+  .glass{padding:11px 13px;} .card{height:64px;min-width:70px;}
+}
+.focus-ring{outline:3px solid var(--origin-gold);outline-offset:2px;}
+.hidden{display:none!important;}
+
+/* title / splash screen */
+#title{position:absolute;inset:0;z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;
+  background:radial-gradient(120% 120% at 50% 40%, var(--bg1), var(--bg0) 80%);transition:opacity .8s var(--ease-mac);}
+#title .brand{font-family:var(--ff-display);font-weight:700;font-size:clamp(48px,11vw,120px);
+  background:linear-gradient(120deg,var(--axis-x),var(--origin-gold),var(--axis-y),var(--axis-z),var(--equation-neon));
+  -webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:-.02em;line-height:1;}
+#title .byline{font-family:var(--ff-display);font-weight:600;font-size:clamp(16px,3vw,24px);color:var(--origin-gold);}
+#title .tagline{font-size:14px;color:var(--txt2);margin-top:4px;letter-spacing:.04em;}
+#title #startbtn{margin-top:26px;font-family:var(--ff-ui);font-weight:800;font-size:18px;color:#1B1E2B;
+  background:var(--origin-gold);border:none;border-radius:999px;padding:14px 40px;cursor:pointer;min-height:56px;
+  box-shadow:0 8px 30px rgba(255,201,74,.4),inset 0 2px 0 rgba(255,255,255,.4);transition:transform .15s var(--ease-mac);}
+#title #startbtn:hover{transform:scale(1.05);} #title #startbtn:active{transform:scale(.96);}
+#title.gone{opacity:0;pointer-events:none;}
+
+/* persistent wordmark */
+#sig{position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:3;pointer-events:none;line-height:1.05;text-align:center;}
+#sig .mk{display:block;font-family:var(--ff-display);font-weight:700;font-size:26px;letter-spacing:-.01em;
+  background:linear-gradient(120deg,var(--origin-gold),var(--axis-x) 55%,var(--equation-neon));
+  -webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 2px 8px rgba(0,0,0,.25));}
+#sig .by{display:block;font-family:var(--ff-ui);font-weight:800;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--txt2);margin-left:3px;margin-top:1px;}
+@media(max-width:1024px){#sig{display:none;}}
+
+/* position inputs */
+#posfields{display:flex;gap:6px;margin:0 0 10px;}
+#posfields label{display:flex;flex-direction:column;font-size:10px;font-weight:800;letter-spacing:.05em;color:var(--txt2);gap:2px;}
+#posfields input{width:54px;font-family:var(--ff-mono);font-size:14px;padding:5px 6px;border-radius:8px;border:1px solid var(--edge);background:var(--surf2);color:var(--txt);outline:none;}
+#posfields input:focus{border-color:var(--origin-gold);}
+#posfields .ax-x{color:var(--axis-x);} #posfields .ax-y{color:var(--axis-y);} #posfields .ax-z{color:var(--axis-z);}
+
+#eqrow{display:flex;gap:6px;}
+#eqclear{flex:0 0 auto;border:1px solid var(--edge);background:var(--surf2);color:var(--txt);border-radius:12px;padding:0 12px;cursor:pointer;font-weight:800;min-height:40px;}
+
+/* custom tooltip for canvas-area hints */
+.tip{position:fixed;z-index:60;pointer-events:none;background:var(--glass);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);
+  border:1px solid var(--edge);border-radius:10px;padding:6px 10px;font-size:12px;font-weight:600;color:var(--txt);max-width:240px;
+  box-shadow:0 6px 20px rgba(0,0,0,.35);opacity:0;transition:opacity .15s;}
+</style>
+<script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mathjs@12.4.1/lib/browser/math.js"></script>
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+}}
+</script>
+</head>
+<body data-theme="cosmos">
+<div id="title">
+  <div class="brand">Geometry</div>
+  <div class="byline">by dio.stesso</div>
+  <div class="tagline">A LIVING COORDINATE UNIVERSE</div>
+  <button id="startbtn">Enter the Lab →</button>
+</div>
+<div id="app">
+  <div id="three"></div>
+  <div id="sig"><span class="mk">✦ Geometry</span><span class="by">by dio.stesso</span></div>
+
+  <div id="breadcrumb" class="glass">
+    <span class="seg" data-d="0">Point</span><span class="sep">›</span>
+    <span class="seg on" data-d="1">Line</span><span class="sep">›</span>
+    <span class="seg" data-d="2">Plane</span><span class="sep">›</span>
+    <span class="seg" data-d="3">Space</span>
+  </div>
+
+  <div id="modepill" class="glass">
+    <button id="m-child" class="on">Child</button>
+    <button id="m-explorer">Explorer</button>
+  </div>
+
+  <div id="topctl" class="glass">
+    <button class="icbtn" id="btn-theme" title="Theme">🎨</button>
+    <button class="icbtn" id="btn-sound" title="Sound">🔇</button>
+    <button class="icbtn" id="btn-share" title="Share view">🔗</button>
+  </div>
+
+  <div id="inset" class="glass"><canvas id="unitc"></canvas><div class="vals" id="unitvals"></div></div>
+
+  <div id="livemath" class="glass" title="Live read-out of the current values. Edit X/Y/Z to move the point precisely.">
+    <h2>Live Math</h2><div id="posfields"></div><div id="lm-body"></div></div>
+
+  <div id="eqpanel" class="glass" title="Type a function of x (e.g. y = x*x). The curve is drawn on the plane. Explorer + Plane mode.">
+    <h2>Equation</h2>
+    <div id="eqrow">
+      <input id="eqinput" type="text" placeholder="y = x + 2" value="" spellcheck="false" title="e.g. y = x, y = x^2, y = 2*x+1, y = sin(x)" />
+      <button id="eqclear" title="Clear the drawn curve">✕</button>
+    </div>
+    <div class="hint" id="eqhint">Explorer only · type any y = f(x)</div>
+  </div>
+
+  <div id="tools" class="glass"></div>
+
+  <div id="dock" class="glass">
+    <button class="card" data-mode="d0" title="Point (0D): just a single position in space."><span class="ico">•</span>Point</button>
+    <button class="card on" data-mode="d1" title="Line (1D): move left/right along one axis."><span class="ico">—</span>Line</button>
+    <button class="card" data-mode="d2" title="Plane (2D): an (x, y) world. Graph equations here."><span class="ico">▦</span>Plane</button>
+    <button class="card" data-mode="d3" title="Space (3D): add depth (z). The world gently orbits."><span class="ico">◉</span>Space</button>
+    <button class="card" data-mode="ang" title="Angles: drag the ray, find landmark angles."><span class="ico">∠</span>Angles</button>
+    <button class="card" data-mode="pyth" title="Distance & Pythagoras: build a right triangle from the origin."><span class="ico">📐</span>Distance</button>
+  </div>
+
+  <div id="coord" class="glass" style="opacity:0">0</div>
+  <div id="termbubble"></div>
+  <div id="ghost">Drag me!</div>
+  <div id="celebrate"></div>
+
+  <!-- mobile bottom sheet -->
+  <!-- mobile chrome: hamburger + wordmark, left menu, bottom info bar -->
+  <button id="menubtn" aria-label="Open menu">☰</button>
+  <div id="mobrand">✦ Geometry</div>
+  <div id="menuscrim"></div>
+  <aside id="leftmenu">
+    <button id="menuclose" aria-label="Close menu">✕</button>
+    <div class="lm-head lm-section"><span class="mk">✦ Geometry</span><span class="by">by dio.stesso</span></div>
+    <div class="lm-section"><div class="lm-title">Mode</div>
+      <div class="modepill2"><button data-exp="0" class="on">Child</button><button data-exp="1">Explorer</button></div></div>
+    <div class="lm-section"><div class="lm-title">Tools</div><div id="menu-tools"></div></div>
+    <div class="lm-section"><div class="lm-title">Equation · Explorer</div>
+      <input id="eqinput-m" placeholder="y = x,  or  x = 4" spellcheck="false"/>
+      <div class="cap" style="margin-top:6px">Graphs on the Plane.</div></div>
+  </aside>
+  <div id="infobar"></div>
+</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+/* ===================================================================== UTIL */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const css = n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const COL = ()=>({x:new THREE.Color(css('--axis-x')),y:new THREE.Color(css('--axis-y')),z:new THREE.Color(css('--axis-z')),
+  gold:new THREE.Color(css('--origin-gold')),neon:new THREE.Color(css('--equation-neon'))});
+let C = COL();
+const Tdur = reduced ? {micro:.05,trans:.15,seq:.15} : {micro:.16,trans:.7,seq:1.6};
+
+/* ===================================================================== SOUND */
+const Sound = (()=>{ let ctx,on=false;
+  const ensure=()=>{ if(!ctx) ctx=new (window.AudioContext||window.webkitAudioContext)(); if(ctx.state==='suspended')ctx.resume(); };
+  function blip(freq,dur,type='sine',vol=.18,slide=0){ if(!on)return; ensure();
+    const t=ctx.currentTime,o=ctx.createOscillator(),g=ctx.createGain();
+    o.type=type;o.frequency.setValueAtTime(freq,t); if(slide)o.frequency.exponentialRampToValueAtTime(freq*slide,t+dur);
+    g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(vol,t+.005);g.gain.exponentialRampToValueAtTime(.0001,t+dur);
+    o.connect(g).connect(ctx.destination);o.start(t);o.stop(t+dur+.02); }
+  return {
+    toggle(){ on=!on; if(on)ensure(); return on; },
+    pop(){ blip(420,.07,'sine',.2,1.5); },
+    tick(){ blip(880,.03,'square',.08); },
+    sparkle(){ [880,1320,1760].forEach((f,i)=>setTimeout(()=>blip(f,.12,'triangle',.13),i*70)); },
+    whoosh(){ blip(180,.5,'sawtooth',.07,3); }
+  };
+})();
+
+/* ===================================================================== THREE CORE */
+const host=$('#three');
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,powerPreference:'high-performance'});
+const isTouch = matchMedia('(pointer:coarse)').matches;
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, isTouch?2:2.5));
+renderer.setSize(innerWidth,innerHeight);
+host.appendChild(renderer.domElement);
+
+const scene=new THREE.Scene();
+const camera=new THREE.PerspectiveCamera(50,innerWidth/innerHeight,.1,500);
+scene.add(camera); camera.position.set(0,0,16);
+const target=new THREE.Vector3(0,0,0);
+// "universe" holds all content; idle orbit rotates THIS, not the camera, so OrbitControls stays world-space-correct
+const universe=new THREE.Group(); scene.add(universe);
+
+const controls=new OrbitControls(camera,renderer.domElement);
+controls.enableDamping=true; controls.dampingFactor=.08; controls.enablePan=false;
+controls.minDistance=1.5; controls.maxDistance=150;
+controls.addEventListener('start',()=>idle.pause());
+controls.addEventListener('end',()=>{ if(State.mode==='d3'){ clearTimeout(idle._t); idle._t=setTimeout(()=>idle.resume(),3000); } });
+
+scene.add(new THREE.AmbientLight(0xffffff,.85));
+const key=new THREE.DirectionalLight(0xffffff,.7); key.position.set(5,8,6); scene.add(key);
+
+/* idle orbit + breathing on the universe group (independent of OrbitControls) */
+const idle = gsap.timeline({repeat:-1});
+if(!reduced){
+  idle.to(universe.rotation,{y:Math.PI*2,duration:90,ease:'none'},0)
+      .to(universe.scale,{x:1.015,y:1.015,z:1.015,duration:3,ease:'sine.inOut',yoyo:true,repeat:-1},0);
+}
+/* ===================================================================== STARFIELD (cosmos) */
+let stars;
+function buildStars(){
+  const g=new THREE.BufferGeometry(),N=900,p=new Float32Array(N*3);
+  for(let i=0;i<N;i++){ const r=60+Math.random()*120, t=Math.random()*Math.PI*2, ph=Math.acos(2*Math.random()-1);
+    p[i*3]=r*Math.sin(ph)*Math.cos(t); p[i*3+1]=r*Math.sin(ph)*Math.sin(t); p[i*3+2]=r*Math.cos(ph); }
+  g.setAttribute('position',new THREE.BufferAttribute(p,3));
+  stars=new THREE.Points(g,new THREE.PointsMaterial({color:0xffffff,size:.5,transparent:true,opacity:.7}));
+  scene.add(stars);
+}
+buildStars();
+
+/* ===================================================================== ORIGIN (always-gold anchor) */
+function discSprite(color,scale){
+  const cv=document.createElement('canvas');cv.width=cv.height=128;const x=cv.getContext('2d');
+  const g=x.createRadialGradient(64,64,0,64,64,64);
+  g.addColorStop(0,'#fff');g.addColorStop(.25,'#'+color.getHexString());g.addColorStop(1,'rgba(0,0,0,0)');
+  x.fillStyle=g;x.fillRect(0,0,128,128);
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));
+  s.scale.setScalar(scale); return s;
+}
+const origin=new THREE.Group();
+const originCore=new THREE.Mesh(new THREE.SphereGeometry(.22,32,32),new THREE.MeshStandardMaterial({color:C.gold,emissive:C.gold,emissiveIntensity:.9,roughness:.3}));
+const originGlow=discSprite(C.gold,1.7);
+origin.add(originGlow,originCore); universe.add(origin);
+if(!reduced) gsap.to(originCore.scale,{x:1.18,y:1.18,z:1.18,duration:2.2,ease:'sine.inOut',yoyo:true,repeat:-1});
+
+/* ===================================================================== SHARED SPHERE (instanced concept: one geom/mat) */
+const SPHERE_GEO=new THREE.SphereGeometry(.34,40,40);
+const pointVert=`varying vec3 vN;varying vec3 vP;void main(){vN=normalize(normalMatrix*normal);vP=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`;
+const pointFrag=`uniform float t;varying vec3 vN;varying vec3 vP;
+uniform vec3 cx;uniform vec3 cy;uniform vec3 cz;uniform vec3 cg;
+void main(){ float a=atan(vP.y,vP.x)+t; float k=mod(a/6.2831853,1.0);
+  vec3 col; if(k<.25)col=mix(cx,cy,k*4.); else if(k<.5)col=mix(cy,cz,(k-.25)*4.); else if(k<.75)col=mix(cz,cg,(k-.5)*4.); else col=mix(cg,cx,(k-.75)*4.);
+  float rim=pow(1.-max(dot(vN,vec3(0.,0.,1.)),0.),2.); col+=rim*.5;
+  gl_FragColor=vec4(col,1.); }`;
+function pointMat(){ return new THREE.ShaderMaterial({uniforms:{t:{value:0},cx:{value:C.x},cy:{value:C.y},cz:{value:C.z},cg:{value:C.gold}},vertexShader:pointVert,fragmentShader:pointFrag}); }
+const pointMatGlobal=pointMat();
+
+function makePoint(scale=1){ const m=new THREE.Mesh(SPHERE_GEO,pointMatGlobal); m.scale.setScalar(scale); m.userData.base=scale;
+  const halo=discSprite(C.gold,1.4*scale); halo.material.opacity=.5; m.add(halo); return m; }
+
+/* ===================================================================== PARTICLE BURST */
+const bursts=[];
+function burst(pos,color=C.gold){
+  const n=8+Math.floor(Math.random()*7), g=new THREE.BufferGeometry();
+  const p=new Float32Array(n*3),v=[];
+  for(let i=0;i<n;i++){ p[i*3]=pos.x;p[i*3+1]=pos.y;p[i*3+2]=pos.z;
+    v.push(new THREE.Vector3((Math.random()-.5)*3,(Math.random()*2.2),(Math.random()-.5)*3)); }
+  g.setAttribute('position',new THREE.BufferAttribute(p,3));
+  const pts=new THREE.Points(g,new THREE.PointsMaterial({color,size:.22,transparent:true,opacity:1,blending:THREE.AdditiveBlending,depthWrite:false}));
+  scene.add(pts); const b={pts,v,life:0,max:.6}; bursts.push(b);
+}
+function stepBursts(dt){ for(let i=bursts.length-1;i>=0;i--){ const b=bursts[i]; b.life+=dt;
+  const a=b.pts.geometry.attributes.position.array;
+  for(let j=0;j<b.v.length;j++){ b.v[j].y-=6*dt; a[j*3]+=b.v[j].x*dt;a[j*3+1]+=b.v[j].y*dt;a[j*3+2]+=b.v[j].z*dt; }
+  b.pts.geometry.attributes.position.needsUpdate=true; b.pts.material.opacity=1-b.life/b.max;
+  if(b.life>=b.max){ scene.remove(b.pts); b.pts.geometry.dispose(); bursts.splice(i,1); } } }
+
+/* ===================================================================== AXES */
+function axisLine(color,len=35){
+  const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(0,0,0),new THREE.Vector3(len,0,0)]);
+  const m=new THREE.LineBasicMaterial({color}); const l=new THREE.Line(g,m); return l;
+}
+function makeAxis(dir,color){ // dir: 'x'|'y'|'z'
+  const grp=new THREE.Group(); const pos=axisLine(color), neg=axisLine(color);
+  neg.scale.x=-1; grp.add(pos,neg);
+  if(dir==='y')grp.rotation.z=Math.PI/2; if(dir==='z')grp.rotation.y=-Math.PI/2;
+  grp.userData.color=color; return grp;
+}
+function textSprite(txt,color,size=.9){
+  const cv=document.createElement('canvas');cv.width=cv.height=128;const x=cv.getContext('2d');
+  x.font='bold 80px JetBrains Mono, monospace';x.textAlign='center';x.textBaseline='middle';
+  x.fillStyle='#'+color.getHexString();x.fillText(txt,64,64);
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthTest:false}));
+  s.scale.setScalar(size); return s;
+}
+
+/* World groups */
+const world=new THREE.Group(); universe.add(world);
+const axX=makeAxis('x',C.x), axY=makeAxis('y',C.y), axZ=makeAxis('z',C.z);
+world.add(axX,axY,axZ);
+// axis letters
+const lblX=textSprite('X',C.x); lblX.position.set(36.5,0,0);
+const lblY=textSprite('Y',C.y); lblY.position.set(0,36.5,0);
+const lblZ=textSprite('Z',C.z); lblZ.position.set(0,0,36.5);
+world.add(lblX,lblY,lblZ);
+
+// grid (XY plane)
+const grid=new THREE.GridHelper(70,70,0x666688,0x444466);
+grid.rotation.x=Math.PI/2; grid.material.transparent=true; grid.material.opacity=.25; world.add(grid);
+// z-depth grid (XZ)
+const gridZ=new THREE.GridHelper(70,70,0x556688,0x3a4a66);
+gridZ.material.transparent=true; gridZ.material.opacity=.18; world.add(gridZ);
+
+/* numbered tick labels on X, Y and Z */
+const ticks=new THREE.Group(), ticksY=new THREE.Group(), ticksZ=new THREE.Group();
+world.add(ticks,ticksY,ticksZ);
+function buildTicks(range=30){
+  [ticks,ticksY,ticksZ].forEach(g=>g.clear());
+  const light = State.theme==='light'||State.theme==='paper';
+  const col=new THREE.Color(light?0x3a3730:0x99a0c0); // dark graphite numerals on light/paper backgrounds
+  for(let i=-range;i<=range;i++){ if(i===0)continue;
+    const op=Math.max(.18,1-Math.abs(i)/(range+3));
+    const tx=textSprite(String(i),col,.5); tx.position.set(i,-.55,0); tx.material.opacity=op; ticks.add(tx);
+    const ty=textSprite(String(i),col,.5); ty.position.set(-.62,i,0); ty.material.opacity=op; ticksY.add(ty);
+    const tz=textSprite(String(i),col,.5); tz.position.set(-.62,0,i); tz.material.opacity=op; ticksZ.add(tz);
+  }
+}
+
+/* ===================================================================== STATE */
+const State = {
+  mode:'d1', dim:1, explorer:false, snap:true, snapStep:1,
+  pos:new THREE.Vector3(5,0,0), vector:false, theme:'cosmos',
+  challenges:Number(localStorage.getItem('dgl_chal')||0)
+};
+buildTicks(); // after State exists (buildTicks reads State.theme)
+
+/* the live draggable sphere */
+const sphere=makePoint(1); world.add(sphere); sphere.position.copy(State.pos);
+const vectorLine=(()=>{ const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]);
+  const m=new THREE.LineBasicMaterial({color:C.neon}); const l=new THREE.Line(g,m); l.visible=false; world.add(l); return l; })();
+function updateVector(){ if(!vectorLine.visible)return; const a=vectorLine.geometry.attributes.position.array;
+  a[0]=a[1]=a[2]=0; a[3]=sphere.position.x;a[4]=sphere.position.y;a[5]=sphere.position.z; vectorLine.geometry.attributes.position.needsUpdate=true; }
+
+/* drag guide lines (3D) */
+const guides=new THREE.Group(); guides.visible=false; world.add(guides);
+['x','y','z'].forEach(()=>{ const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3()]);
+  guides.add(new THREE.Line(g,new THREE.LineDashedMaterial({color:0xffffff,dashSize:.3,gapSize:.2,transparent:true,opacity:.6}))); });
+const projMarkers = new THREE.Group(); projMarkers.visible=false; world.add(projMarkers);
+const pGeo = new THREE.SphereGeometry(0.18, 16, 16);
+const projX = new THREE.Mesh(pGeo, new THREE.MeshBasicMaterial({color:C.x}));
+const projY = new THREE.Mesh(pGeo, new THREE.MeshBasicMaterial({color:C.y}));
+const projZ = new THREE.Mesh(pGeo, new THREE.MeshBasicMaterial({color:C.z}));
+projMarkers.add(projX, projY, projZ);
+
+function updateGuides(){
+  const p=sphere.position;
+  if(guides.visible){
+    const segs=[[[0,p.y,p.z],[p.x,p.y,p.z]],[[p.x,0,p.z],[p.x,p.y,p.z]],[[p.x,p.y,0],[p.x,p.y,p.z]]];
+    guides.children.forEach((l,i)=>{ const a=l.geometry.attributes.position.array; const s=segs[i];
+      a[0]=s[0][0];a[1]=s[0][1];a[2]=s[0][2];a[3]=s[1][0];a[4]=s[1][1];a[5]=s[1][2];
+      l.geometry.attributes.position.needsUpdate=true; l.computeLineDistances();
+      l.material.color = i===0?C.x:i===1?C.y:C.z; });
+  }
+  if(projMarkers.visible){
+    projX.position.set(p.x,0,0); projY.position.set(0,p.y,0); projZ.position.set(0,0,p.z);
+    projX.material.color = C.x; projY.material.color = C.y; projZ.material.color = C.z;
+  }
+}
+
+/* ===================================================================== COORDINATE BUBBLE */
+const coordEl=$('#coord');
+function fmt(n){ return State.explorer ? (Math.round(n*10000)/10000).toString() : Math.round(n).toString(); }
+let lastCoordStr='';
+function coordString(){
+  const p=sphere.position; if(State.dim<=1)return fmt(p.x);
+  if(State.dim===2)return `(${fmt(p.x)}, ${fmt(p.y)})`;
+  return `(${fmt(p.x)}, ${fmt(p.y)}, ${fmt(p.z)})`;
+}
+function renderCoord(animateNew){
+  const str=coordString();
+  if(str===lastCoordStr){ projectCoord(); return; }
+  // char-by-char: keep common prefix, animate the rest in
+  coordEl.innerHTML='';
+  [...str].forEach((c,i)=>{ const sp=document.createElement('span'); sp.className='ch'; sp.textContent=c; coordEl.appendChild(sp);
+    if(animateNew && i>=commonPrefix(lastCoordStr,str)){ gsap.fromTo(sp,{opacity:0,y:4},{opacity:1,y:0,duration:Tdur.micro,delay:i*0.02,ease:'power2.out'}); } });
+  lastCoordStr=str; projectCoord();
+}
+function commonPrefix(a,b){ let i=0; while(i<a.length&&i<b.length&&a[i]===b[i])i++; return i; }
+const coordAnchor=new THREE.Vector3();
+function projectCoord(){
+  coordAnchor.lerp(sphere.getWorldPosition(new THREE.Vector3()),.5);
+  const v=coordAnchor.clone().project(camera);
+  coordEl.style.left=(v.x*.5+.5)*innerWidth+'px';
+  coordEl.style.top=(-v.y*.5+.5)*innerHeight+'px';
+}
+/* ---- typed X/Y/Z entry: move the point precisely, in addition to dragging it ---- */
+function setSphere(k,v){ v=Math.max(-35,Math.min(35,v));
+  gsap.to(sphere.position,{[k]:v,duration:.3,ease:'power3.out',
+    onUpdate:()=>{updateVector();updateGuides();renderCoord(false);},
+    onComplete:()=>{State.pos.copy(sphere.position);updateLiveMath();}}); }
+function buildPosFields(){ const host=$('#posfields'); if(!host)return;
+  const dimWorld=['d1','d2','d3'].includes(State.mode); // point(d0) sits at origin; no entry needed
+  if(!dimWorld){ host.style.display='none'; host.innerHTML=''; return; }
+  host.style.display='flex';
+  const axes=[['X','x','ax-x'],['Y','y','ax-y'],['Z','z','ax-z']].slice(0,State.dim);
+  host.innerHTML=axes.map(([L,k,c])=>`<label class="${c}">${L}<input data-k="${k}" type="number" step="${State.explorer?'0.1':'1'}" value="${fmt(sphere.position[k])}" title="Type a ${L} value to move the point"></label>`).join('');
+  host.querySelectorAll('input').forEach(inp=>{ inp.onchange=()=>{ const v=parseFloat(inp.value); if(!isNaN(v))setSphere(inp.dataset.k,v); };
+    inp.onkeydown=e=>{ if(e.key==='Enter'){const v=parseFloat(inp.value);if(!isNaN(v))setSphere(inp.dataset.k,v);inp.blur();} }; });
+}
+function updatePosValues(){ $$('#posfields input').forEach(inp=>{ if(document.activeElement!==inp) inp.value=fmt(sphere.position[inp.dataset.k]); }); }
+
+/* ===================================================================== DRAG (unified pointer) */
+const raycaster=new THREE.Raycaster(); raycaster.params.Points={threshold:.4};
+const ndc=new THREE.Vector2();
+let dragging=null, dragPlane=new THREE.Plane(), dragOff=new THREE.Vector3();
+const draggables=()=>{ // returns array of {mesh,onMove,axisLock}
+  if(['d1','d2','d3'].includes(State.mode)) return [{mesh:sphere}]; // Point (d0) is a fixed 0-D location
+  if(State.mode==='ang') return [{mesh:angle.handle}];
+  if(State.mode==='pyth') return pyth.points.map(p=>({mesh:p}));
+  return [];
+};
+function setNDC(e){ ndc.x=(e.clientX/innerWidth)*2-1; ndc.y=-(e.clientY/innerHeight)*2+1; raycaster.setFromCamera(ndc,camera); }
+const W2L=v=>universe.worldToLocal(v.clone()); // world intersection -> universe-local (where axes & math live)
+function pickDraggable(e){
+  setNDC(e);
+  const items=draggables(); let best=null,bd=Infinity;
+  // generous catch radius on touch: compare screen distance to projected center
+  for(const it of items){
+    const sp=it.mesh.getWorldPosition(new THREE.Vector3()).project(camera);
+    const sx=(sp.x*.5+.5)*innerWidth, sy=(-sp.y*.5+.5)*innerHeight;
+    const d=Math.hypot(sx-e.clientX,sy-e.clientY); const R=isTouch?44:30;
+    if(d<R && d<bd){ bd=d; best=it; }
+  }
+  return best;
+}
+function onDown(e){
+  if(e.target!==renderer.domElement) return;
+  const hit=pickDraggable(e);
+  if(!hit){ return; } // background -> let OrbitControls handle
+  controls.enabled=false; dragging=hit; idle.pause(); // freeze world so target doesn't slide under finger
+  Sound.tick();
+  dismissGhost();
+  // squash
+  gsap.to(hit.mesh.scale,{x:hit.mesh.scale.x*1.08,y:hit.mesh.scale.y*.85,z:hit.mesh.scale.x*1.08,duration:Tdur.micro,ease:'power2.out'});
+  if(State.mode==='d3'){ guides.visible=true; }
+  // drag plane faces camera, through object
+  const n=camera.getWorldDirection(new THREE.Vector3()).negate();
+  dragPlane.setFromNormalAndCoplanarPoint(n,hit.mesh.getWorldPosition(new THREE.Vector3()));
+  const ip=new THREE.Vector3(); raycaster.ray.intersectPlane(dragPlane,ip);
+  dragOff.copy(hit.mesh.position).sub(W2L(ip)); // offset in local space
+  e.preventDefault();
+}
+function onMove(e){
+  if(!dragging){ return; }
+  setNDC(e);
+  const ip=new THREE.Vector3();
+  if(!raycaster.ray.intersectPlane(dragPlane,ip)) return;
+  const local=W2L(ip).add(dragOff); // -> universe-local, constraints below are axis-correct
+  applyDrag(dragging.mesh,local);
+}
+function applyDrag(mesh,ip){
+  if(['d0','d1','d2','d3'].includes(State.mode)){
+    let p=ip.clone();
+    if(State.dim<=1){ p.y=0;p.z=0; } else if(State.dim===2){ p.z=0; }
+    p.clampScalar(-35,35);
+    let disp=p.clone();
+    if(State.snap){ disp.x=snapVal(p.x);disp.y=State.dim>1?snapVal(p.y):0;disp.z=State.dim>2?snapVal(p.z):0; }
+    mesh.position.copy(p); State.pos.copy(disp);
+    sphere.userData.snapTo=disp.clone();
+    updateVector(); renderCoord(true); updateGuides(); updateLiveMath();
+  } else if(State.mode==='ang'){ angle.drag(ip); }
+  else if(State.mode==='pyth'){ pyth.drag(mesh,ip); }
+}
+function snapVal(v){ return Math.round(v/State.snapStep)*State.snapStep; }
+function onUp(){
+  if(!dragging){ return; }
+  const mesh=dragging.mesh; const base=mesh.userData.base||1;
+  gsap.to(mesh.scale,{x:base,y:base,z:base,duration:Tdur.micro,ease:'back.out(1.7)'});
+  if(['d0','d1','d2','d3'].includes(State.mode) && State.snap && sphere.userData.snapTo){
+    gsap.to(sphere.position,{x:sphere.userData.snapTo.x,y:sphere.userData.snapTo.y,z:sphere.userData.snapTo.z,duration:.28,ease:'power3.out',
+      onUpdate:()=>{updateVector();updateGuides();renderCoord(false);},onComplete:()=>{burst(sphere.getWorldPosition(new THREE.Vector3()));}});
+  } else { burst(mesh.getWorldPosition(new THREE.Vector3())); }
+  Sound.pop();
+  clearCell();
+  guides.visible=false;
+  controls.enabled = State.explorer || ['d2','d3','ang','pyth'].includes(State.mode);
+  if(State.mode==='ang') angle.release();
+  if(State.mode==='pyth') pyth.release();
+  dragging=null;
+  if(State.mode==='d3'){ clearTimeout(idle._t); idle._t=setTimeout(()=>idle.resume(),3000); }
+}
+renderer.domElement.addEventListener('pointerdown',onDown);
+addEventListener('pointermove',onMove,{passive:false});
+addEventListener('pointerup',onUp);
+addEventListener('pointercancel',onUp);
+
+/* (snap-cell square highlight removed — it read as an unwanted square shadow under the dot) */
+function clearCell(){}
+
+/* ===================================================================== KEYBOARD */
+addEventListener('keydown',e=>{
+  if(['INPUT','TEXTAREA'].includes(document.activeElement.tagName))return;
+  const step=State.snapStep||1; let moved=false; const p=sphere.position;
+  if(['d1','d2','d3'].includes(State.mode)){
+    if(e.key==='ArrowLeft'){p.x-=step;moved=true;} if(e.key==='ArrowRight'){p.x+=step;moved=true;}
+    if(State.dim>1){ if(e.key==='ArrowUp'){p.y+=step;moved=true;} if(e.key==='ArrowDown'){p.y-=step;moved=true;} }
+    if(moved){ p.clampScalar(-35,35); State.pos.copy(p); gsap.fromTo(sphere.scale,{x:1.15},{x:1,duration:.2,ease:'back.out(2)'});
+      updateVector();updateGuides();renderCoord(true);updateLiveMath();Sound.tick();e.preventDefault(); dismissGhost(); }
+  }
+});
+
+/* ===================================================================== GHOST HINT */
+let ghostGone=sessionStorage.getItem('dgl_moved');
+if(ghostGone) $('#ghost').style.opacity=0;
+function dismissGhost(){ if(!ghostGone){ ghostGone=1; sessionStorage.setItem('dgl_moved','1'); gsap.to($('#ghost'),{opacity:0,duration:.6}); } }
+
+/* ===================================================================== CELEBRATION */
+function celebrate(text,color){
+  const el=$('#celebrate'); el.textContent=text; el.style.color=color||css('--origin-gold');
+  gsap.killTweensOf(el);
+  gsap.fromTo(el,{opacity:0,y:20,scale:.8},{opacity:1,y:0,scale:1,duration:.4,ease:'back.out(1.7)'});
+  gsap.to(el,{opacity:0,duration:.5,delay:1.4});
+  Sound.sparkle();
+  State.challenges++; localStorage.setItem('dgl_chal',State.challenges);
+}
+
+/* ===================================================================== TERMINOLOGY (every module names what you see) */
+const termEl=$('#termbubble');
+const termAnchorV=new THREE.Vector3();
+// the single terminology word for the current state (used by both the on-canvas bubble and the mobile info bar)
+function termHeadline(){ const m=State.mode, p=sphere.position;
+  if(m==='d0') return 'The Origin';
+  if(m==='d1') return p.x>0?'Positive direction':p.x<0?'Negative direction':'The Origin';
+  if(m==='d2') return quadrant2(p.x,p.y);
+  if(m==='d3') return octantName(p.x,p.y,p.z);
+  if(m==='ang') return angle.typeWord();
+  if(m==='pyth') return pyth.typeWord();
+  return ''; }
+// on-canvas terminology: a small pill that floats next to the live object and names it (Acute angle, Quadrant II, Right triangle, …)
+function updateTermBubble(){
+  if(!termEl) return; const m=State.mode, p=sphere.position; let aw=null; const txt=termHeadline();
+  if(m==='d0') aw=termAnchorV.set(0,1.8,0);
+  else if(m==='d1') aw=termAnchorV.set(p.x,1.8,0);
+  else if(m==='d2') aw=termAnchorV.set(p.x,p.y+1.8,0);
+  else if(m==='d3') aw=termAnchorV.set(p.x,p.y+1.8,p.z);
+  else if(m==='ang') aw=termAnchorV.copy(angle.anchor());
+  else if(m==='pyth') aw=termAnchorV.copy(pyth.anchor());
+  if(!txt||!aw){ termEl.style.opacity=0; return; }
+  if(termEl.textContent!==txt) termEl.textContent=txt;
+  const v=universe.localToWorld(aw.clone()).project(camera);
+  if(v.z>1){ termEl.style.opacity=0; return; }
+  termEl.style.left=(v.x*.5+.5)*innerWidth+'px'; termEl.style.top=(-v.y*.5+.5)*innerHeight+'px';
+  termEl.style.opacity=1;
+}
+function tBox(title,body){ return `<div class="terms"><b>${title}</b><br>${body}</div>`; }
+function quadrant2(x,y){ const ex=Math.abs(x)<1e-6,ey=Math.abs(y)<1e-6;
+  if(ex&&ey)return 'At the Origin'; if(ey)return 'On the X-axis'; if(ex)return 'On the Y-axis';
+  return x>0&&y>0?'Quadrant I':x<0&&y>0?'Quadrant II':x<0&&y<0?'Quadrant III':'Quadrant IV'; }
+function octantName(x,y,z){ if(Math.abs(x)<1e-6||Math.abs(y)<1e-6||Math.abs(z)<1e-6)return 'On a coordinate plane';
+  const n=(x>0?1:0)+(y>0?2:0)+(z>0?4:0)+1; return 'Octant '+n; }
+function termsHTML(){ const p=sphere.position;
+  if(State.mode==='d0') return tBox('Point — 0-dimensional','A single location with no length, width or depth. This one is the <b>Origin</b>, written (0, 0, 0).');
+  if(State.mode==='d1'){ const s=p.x>0?'positive':p.x<0?'negative':'zero';
+    return tBox('Number line — 1-dimensional','<b>Coordinate</b> '+fmt(p.x)+' · <b>'+s+'</b> direction · <b>magnitude</b> '+Math.abs(p.x).toFixed(State.explorer?2:0)); }
+  if(State.mode==='d2') return tBox(quadrant2(p.x,p.y)+' — 2-dimensional','<b>abscissa</b> (x) = '+fmt(p.x)+' · <b>ordinate</b> (y) = '+fmt(p.y)+'<br>distance from origin <b>r = '+Math.hypot(p.x,p.y).toFixed(2)+'</b>');
+  if(State.mode==='d3') return tBox(octantName(p.x,p.y,p.z)+' — 3-dimensional','ordered triple ('+fmt(p.x)+', '+fmt(p.y)+', '+fmt(p.z)+')<br>vector <b>magnitude |r| = '+Math.hypot(p.x,p.y,p.z).toFixed(2)+'</b>');
+  if(State.mode==='ang') return angle.termsHTML();
+  if(State.mode==='pyth') return pyth.termsHTML();
+  return '';
+}
+/* ===================================================================== LIVE MATH */
+function updateLiveMath(){
+  const p=sphere.position; let html='';
+  if(State.mode==='d1'||State.mode==='d0'){ html=`<div class="row">x = <b>${fmt(p.x)}</b></div>`; }
+  else if(State.mode==='d2'){ html=`<div class="row">x = <b>${fmt(p.x)}</b></div><div class="row">y = <b>${fmt(p.y)}</b></div>
+    <div class="row">|r| = <b>${(Math.hypot(p.x,p.y)).toFixed(2)}</b></div>`; }
+  else if(State.mode==='d3'){ html=`<div class="row">x=<b>${fmt(p.x)}</b> y=<b>${fmt(p.y)}</b> z=<b>${fmt(p.z)}</b></div>
+    <div class="row">|r| = <b>${(Math.hypot(p.x,p.y,p.z)).toFixed(2)}</b></div>`; }
+  else if(State.mode==='ang'){ html=angle.liveHTML(); }
+  else if(State.mode==='pyth'){ html=pyth.liveHTML(); }
+  html += termsHTML();
+  $('#lm-body').innerHTML=html;
+  // mobile bottom info bar: primary value + terminology headline
+  const ib=$('#infobar');
+  if(ib){ const fb=$('#lm-body b'); const labels={d0:'Point',d1:'X',d2:'(X, Y)',d3:'(X, Y, Z)',ang:'Angle',pyth:'Hyp'};
+    ib.innerHTML=`<span class="ibv">${labels[State.mode]||''} ${fb?fb.textContent:'—'}</span><span class="ibt">${termHeadline()}</span>`; }
+  updatePosValues();
+}
+
+/* ===================================================================== ANGLES MODULE */
+const angle=(()=>{
+  const grp=new THREE.Group(); grp.visible=false; world.add(grp);
+  const fixed=rayMesh(new THREE.Color(css('--axis-x')),true);
+  const move=rayMesh(C.neon,false);
+  const handle=makePoint(.7); handle.position.set(7,0,0);
+  // sector
+  const sectorMat=new THREE.MeshBasicMaterial({color:C.neon,transparent:true,opacity:.28,side:THREE.DoubleSide,depthWrite:false});
+  const sector=new THREE.Mesh(new THREE.BufferGeometry(),sectorMat);
+  const label=textSprite('0°',C.neon,1.1);
+  grp.add(fixed,move,sector,handle,label);
+  let ang=0, prevRaw=0, turns=0;
+  function rayMesh(color,dim){ const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3(7,0,0)]);
+    const m=new THREE.LineBasicMaterial({color,transparent:true,opacity:dim?.4:1,linewidth:2}); return new THREE.Line(g,m); }
+  function setRay(line,a){ const arr=line.geometry.attributes.position.array; arr[3]=7*Math.cos(a);arr[4]=7*Math.sin(a);arr[5]=0; line.geometry.attributes.position.needsUpdate=true; }
+  function rebuildSector(a){
+    const seg=Math.max(2,Math.floor(Math.abs(a)/0.1)); const pts=[new THREE.Vector3()];
+    for(let i=0;i<=seg;i++){ const t=a*i/seg; pts.push(new THREE.Vector3(3*Math.cos(t),3*Math.sin(t),0)); }
+    const idx=[]; for(let i=1;i<pts.length-1;i++){ idx.push(0,i,i+1); }
+    const g=sector.geometry; g.setFromPoints(pts); g.setIndex(idx); g.computeVertexNormals();
+  }
+  function drag(ip){ let a=Math.atan2(ip.y,ip.x); if(a<0)a+=Math.PI*2;
+    if(State.explorer){ // multi-revolution tracking
+      let d=a-prevRaw; if(d>Math.PI)turns--; if(d<-Math.PI)turns++; prevRaw=a; a=a+turns*Math.PI*2;
+    } else {
+      if(State.snap){ const inc=Math.PI/12; const sn=Math.round(a/inc)*inc; if(Math.abs(sn-a)<0.06)a=sn; }
+    }
+    ang=a; commit(); checkLandmark();
+  }
+  let lastLandmark=-1;
+  function checkLandmark(){ const deg=Math.round(ang*180/Math.PI);
+    const lm=[0,90,180,270,360]; for(const L of lm){ if(Math.abs(((deg%360)+360)%360-L%360)<2 && lastLandmark!==L){ lastLandmark=L;
+      gsap.to(sectorMat,{opacity:.6,duration:.2,yoyo:true,repeat:1});
+      burst(new THREE.Vector3(3*Math.cos(ang),3*Math.sin(ang),0),C.gold);
+      const names={0:'Zero',90:'✨ Right Angle · Quarter Turn',180:'Straight Angle · Half Turn',270:'Three-Quarter Turn',360:'Full Turn!'};
+      celebrate(names[L]||L+'°'); } } if([45,135,225,315].includes(((deg%360)+360)%360)) lastLandmark=-1; }
+  function commit(){ setRay(move,ang); handle.position.set(7*Math.cos(ang),7*Math.sin(ang),0); rebuildSector(ang);
+    const mid=ang/2; const deg=ang*180/Math.PI;
+    let txt = State.explorer ? `${deg.toFixed(0)}°` : `${(((deg%360)+360)%360).toFixed(0)}°`;
+    if(State.explorer && Math.abs(deg)>=360){ const norm=((deg%360)+360)%360; txt=`${deg.toFixed(0)}° (${norm.toFixed(0)}°)`; }
+    label.position.set(4*Math.cos(mid),4*Math.sin(mid),0); updateLabel(txt);
+    updateLiveMath(); updateUnitCircle(ang);
+  }
+  function updateLabel(txt){ const cv=label.material.map.image,x=cv.getContext('2d'); cv.width=cv.width;
+    x.font='bold 56px JetBrains Mono';x.textAlign='center';x.textBaseline='middle';x.fillStyle='#'+C.neon.getHexString();x.fillText(txt,64,64);
+    label.material.map.needsUpdate=true; }
+  function liveHTML(){ const deg=ang*180/Math.PI; const rad=ang;
+    return `<div class="row">θ = <b>${(((deg%360)+360)%360).toFixed(1)}°</b></div>
+            <div class="row">rad = <b>${(rad).toFixed(3)}</b></div>
+            ${State.explorer?`<div class="row">cos=<b>${Math.cos(ang).toFixed(3)}</b></div><div class="row">sin=<b>${Math.sin(ang).toFixed(3)}</b></div>`:''}`; }
+  function termsHTML(){ const deg=ang*180/Math.PI; const d=((deg%360)+360)%360;
+    let type; if(d<.5||Math.abs(d-360)<.5)type='Zero / Full angle';
+      else if(Math.abs(d-90)<.5)type='Right angle'; else if(Math.abs(d-180)<.5)type='Straight angle';
+      else if(d<90)type='Acute angle'; else if(d<180)type='Obtuse angle'; else type='Reflex angle';
+    const comp = d>0&&d<90? ` · complement <b>${(90-d).toFixed(0)}°</b>`:'';
+    const supp = d>0&&d<180? ` · supplement <b>${(180-d).toFixed(0)}°</b>`:'';
+    const quad = d===0?'on +X axis':d<90?'Quadrant I':d===90?'on +Y axis':d<180?'Quadrant II':d===180?'on −X axis':d<270?'Quadrant III':d===270?'on −Y axis':'Quadrant IV';
+    const dir = State.explorer ? (deg<0?' · clockwise (−)':' · counter-clockwise (+)') : '';
+    return `<div class="terms"><b>${type}</b>${comp}${supp}<br>terminal side in <b>${quad}</b>${dir}</div>`; }
+  function typeWord(){ const d=((ang*180/Math.PI)%360+360)%360;
+    if(d<.5||Math.abs(d-360)<.5)return 'Zero / Full'; if(Math.abs(d-90)<.5)return 'Right angle';
+    if(Math.abs(d-180)<.5)return 'Straight angle'; if(d<90)return 'Acute angle'; if(d<180)return 'Obtuse angle'; return 'Reflex angle'; }
+  function anchor(){ const r=5.2; return new THREE.Vector3(r*Math.cos(ang/2),r*Math.sin(ang/2),0); }
+  return {grp,handle,drag,release(){lastLandmark=-1;},commit,liveHTML,termsHTML,typeWord,anchor,
+    show(v){ grp.visible=v; if(v){ang=Math.PI/4;prevRaw=Math.PI/4;turns=0;commit();} },
+    baseScale:.7 };
+})();
+
+/* unit circle inset */
+const uctx=$('#unitc').getContext('2d');
+function updateUnitCircle(a){ if($('#inset').style.display==='none')return;
+  const cv=$('#unitc'); const w=cv.width=160,h=cv.height=160,cx=80,cy=80,r=62; uctx.clearRect(0,0,w,h);
+  uctx.strokeStyle='#7a7a9a';uctx.beginPath();uctx.arc(cx,cy,r,0,7);uctx.stroke();
+  uctx.strokeStyle='#444';uctx.beginPath();uctx.moveTo(cx-r,cy);uctx.lineTo(cx+r,cy);uctx.moveTo(cx,cy-r);uctx.lineTo(cx,cy+r);uctx.stroke();
+  const px=cx+r*Math.cos(a),py=cy-r*Math.sin(a);
+  uctx.strokeStyle=css('--equation-neon');uctx.lineWidth=2;uctx.beginPath();uctx.moveTo(cx,cy);uctx.lineTo(px,py);uctx.stroke();
+  uctx.fillStyle=css('--origin-gold');uctx.beginPath();uctx.arc(px,py,5,0,7);uctx.fill();
+  $('#unitvals').innerHTML=`cos ${Math.cos(a).toFixed(2)}<br>sin ${Math.sin(a).toFixed(2)}<br>tan ${(Math.tan(a)).toFixed(2)}`;
+}
+
+/* small updatable canvas text label (for side/angle naming) */
+function makeLabel(color,size=.9){
+  const cv=document.createElement('canvas');cv.width=256;cv.height=64;
+  const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthTest:false}));
+  s.scale.set(size*2.6,size*.65,1);
+  s.userData.set=(txt,col)=>{ const x=cv.getContext('2d'); x.clearRect(0,0,256,64);
+    x.font='bold 30px Nunito Sans, sans-serif';x.textAlign='center';x.textBaseline='middle';
+    x.fillStyle='#'+(col||color).getHexString(); x.fillText(txt,128,32); s.material.map.needsUpdate=true; };
+  return s;
+}
+/* ===================================================================== PYTHAGORAS MODULE (triangle always anchored at the origin) */
+const pyth=(()=>{
+  const grp=new THREE.Group(); grp.visible=false; world.add(grp);
+  const A=makePoint(.55); A.position.set(0,0,0);            // A is fixed AT THE ORIGIN
+  const B=makePoint(.7);  B.position.set(4,3,0);            // only B is draggable
+  const bars=new THREE.Group(); grp.add(bars,B); // A not added — the gold origin already marks it
+  function bar(color){ const m=new THREE.Mesh(new THREE.BoxGeometry(1,.16,.16),new THREE.MeshStandardMaterial({color,emissive:color,emissiveIntensity:.4})); bars.add(m); return m; }
+  const legH=bar(C.x),legV=bar(C.y),hyp=bar(C.neon);       // horizontal leg, vertical leg, hypotenuse
+  const rightSq=new THREE.LineSegments(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:0xcfcfe0})); grp.add(rightSq);
+  const arc=new THREE.Line(new THREE.BufferGeometry(),new THREE.LineBasicMaterial({color:C.gold})); grp.add(arc);
+  const lblBase=makeLabel(C.x), lblPerp=makeLabel(C.y), lblHyp=makeLabel(C.neon), lblAng=makeLabel(C.gold,.7);
+  grp.add(lblBase,lblPerp,lblHyp,lblAng);
+  const squares=new THREE.Group(); grp.add(squares); squares.visible=false;
+  function sqMesh(color){ const m=new THREE.Mesh(new THREE.PlaneGeometry(1,1),new THREE.MeshBasicMaterial({color,transparent:true,opacity:.22,side:THREE.DoubleSide,depthWrite:false})); squares.add(m); return m; }
+  const sqA=sqMesh(C.x),sqB=sqMesh(C.y),sqC=sqMesh(C.neon);
+  let stage=0; // 0 playground · 1 triangle (labels+arc) · 2 squares+transfer
+  let sel='O'; // which angle is "in question": 'O' at origin, 'P' at point B
+  function place(barMesh,p1,p2){ const mid=p1.clone().add(p2).multiplyScalar(.5); const len=p1.distanceTo(p2);
+    barMesh.position.copy(mid); barMesh.scale.x=Math.max(.001,len); barMesh.rotation.z=Math.atan2(p2.y-p1.y,p2.x-p1.x); }
+  function refresh(){
+    const a=A.position, b=B.position, corner=new THREE.Vector3(b.x,0,0);
+    place(legH,a,corner); place(legV,corner,b); place(hyp,a,b);
+    const dx=Math.abs(b.x),dy=Math.abs(b.y),dd=Math.hypot(dx,dy);
+    legV.visible=hyp.visible=(stage>=1)||dd>0.01;
+    // right-angle square mark at the corner
+    const sgnx=Math.sign(b.x)||1, sgny=Math.sign(b.y)||1, m=Math.min(.6,dx*.4,dy*.4);
+    rightSq.visible=stage>=1 && m>.05;
+    if(rightSq.visible){ const c=corner; rightSq.geometry.setFromPoints([
+      new THREE.Vector3(c.x-sgnx*m,0,0),new THREE.Vector3(c.x-sgnx*m,sgny*m,0),
+      new THREE.Vector3(c.x-sgnx*m,sgny*m,0),new THREE.Vector3(c.x,sgny*m,0)]); }
+    // labels: "Base" = leg adjacent to the SELECTED angle, "Perpendicular" = opposite leg, "Hypotenuse" always A→B
+    const showLbl=stage>=1; lblBase.visible=lblPerp.visible=lblHyp.visible=lblAng.visible=showLbl;
+    if(showLbl){
+      const midH=new THREE.Vector3((a.x+corner.x)/2,-sgny*.5,0);   // under horizontal leg
+      const midV=new THREE.Vector3(corner.x+sgnx*.6,(corner.y+b.y)/2,0); // beside vertical leg
+      const midD=new THREE.Vector3((a.x+b.x)/2 - sgny*.6*Math.sign(b.x||1),(a.y+b.y)/2 + sgnx*.6,0);
+      if(sel==='O'){ lblBase.position.copy(midH); lblBase.userData.set('Base '+dx.toFixed(1),C.x);
+                     lblPerp.position.copy(midV); lblPerp.userData.set('Perpendicular '+dy.toFixed(1),C.y); }
+      else        { lblBase.position.copy(midV); lblBase.userData.set('Base '+dy.toFixed(1),C.y);
+                     lblPerp.position.copy(midH); lblPerp.userData.set('Perpendicular '+dx.toFixed(1),C.x); }
+      lblHyp.position.copy(midD); lblHyp.userData.set('Hypotenuse '+dd.toFixed(1),C.neon);
+      // angle arc + value at the selected vertex
+      const at = sel==='O'? a : b;
+      const toCorner = sel==='O'? corner.clone().sub(a) : corner.clone().sub(b);
+      const toFar    = sel==='O'? b.clone().sub(a)      : a.clone().sub(b);
+      const a0=Math.atan2(toCorner.y,toCorner.x), a1=Math.atan2(toFar.y,toFar.x);
+      let d0=a0, sweep=a1-a0; if(sweep>Math.PI)sweep-=2*Math.PI; if(sweep<-Math.PI)sweep+=2*Math.PI;
+      const pts=[]; const R=Math.min(1.4,dd*.4); for(let i=0;i<=24;i++){const t=d0+sweep*i/24;pts.push(new THREE.Vector3(at.x+R*Math.cos(t),at.y+R*Math.sin(t),0));}
+      arc.geometry.setFromPoints(pts); arc.visible=true;
+      const amid=d0+sweep/2, deg=Math.abs(sweep)*180/Math.PI;
+      lblAng.position.set(at.x+(R+.7)*Math.cos(amid),at.y+(R+.7)*Math.sin(amid),0);
+      lblAng.userData.set(deg.toFixed(0)+'°',C.gold);
+    } else { arc.visible=false; }
+    // squares
+    sqA.scale.set(dx,dx,1); sqA.position.set((a.x+corner.x)/2, -sgny*dx/2,0);
+    sqB.scale.set(dy,dy,1); sqB.position.set(corner.x+sgnx*dy/2,(corner.y+b.y)/2,0);
+    const ang=Math.atan2(b.y-a.y,b.x-a.x); sqC.scale.set(dd,dd,1);
+    const nx=Math.cos(ang-Math.PI/2),ny=Math.sin(ang-Math.PI/2);
+    sqC.position.set((a.x+b.x)/2+nx*dd/2,(a.y+b.y)/2+ny*dd/2,0); sqC.rotation.z=ang;
+    updateLiveMath();
+    if(!grp.userData.won && Math.abs(dx-3)<.3 && Math.abs(dy-4)<.3){ grp.userData.won=true; celebrate('🎉 You built a 3-4-5 triangle!'); }
+    else if(Math.abs(dx-3)>.5||Math.abs(dy-4)>.5) grp.userData.won=false;
+  }
+  function liveHTML(){ const dx=Math.abs(B.position.x),dy=Math.abs(B.position.y),dd=Math.hypot(dx,dy);
+    const baseV=sel==='O'?dx:dy, perpV=sel==='O'?dy:dx;
+    return `<div class="row">Base = <b>${baseV.toFixed(2)}</b></div><div class="row">Perp = <b>${perpV.toFixed(2)}</b></div>
+            <div class="row">Hyp&nbsp;= <b>${dd.toFixed(2)}</b></div>
+            ${stage>=2?`<div class="row">${(dx*dx).toFixed(1)}+${(dy*dy).toFixed(1)} = <b>${(dd*dd).toFixed(1)}</b></div>`:''}`; }
+  let xfer=null;
+  function startX(){ stopX(); xfer=gsap.timeline({repeat:-1,repeatDelay:1.5});
+    xfer.fromTo([sqA.material,sqB.material],{opacity:.24},{opacity:.04,duration:2,ease:'power1.inOut'},0)
+        .fromTo(sqC.material,{opacity:.04},{opacity:.5,duration:2,ease:'power1.inOut'},0)
+        .to([sqA.material,sqB.material],{opacity:.24,duration:.6},'+=1.5')
+        .to(sqC.material,{opacity:.22,duration:.6},'<'); }
+  function stopX(){ if(xfer)xfer.kill(); xfer=null; sqA.material.opacity=sqB.material.opacity=sqC.material.opacity=.22; }
+  function termsHTML(){ const dx=Math.abs(B.position.x),dy=Math.abs(B.position.y),dd=Math.hypot(dx,dy);
+    if(dd<.05) return `<div class="terms">Drag the point away from the origin to form a triangle.</div>`;
+    const sides = Math.abs(dx-dy)<.05?'Isosceles right triangle':'Scalene right triangle';
+    const a1=Math.atan2(dy,dx)*180/Math.PI, a2=90-a1;
+    const r=Math.round(dd); const triple=(dx>0&&dy>0&&Number.isInteger(dx)&&Number.isInteger(dy)&&Math.abs(dd-r)<.001)?` · <b>Pythagorean triple ${dx}-${dy}-${r}</b>`:'';
+    return `<div class="terms"><b>Right triangle</b> · ${sides}<br>legs <b>${dx.toFixed(1)}</b> &amp; <b>${dy.toFixed(1)}</b>, hypotenuse <b>${dd.toFixed(1)}</b><br>acute angles <b>${a1.toFixed(0)}°</b> + <b>${a2.toFixed(0)}°</b> = 90°${triple}</div>`; }
+  function typeWord(){ const dx=Math.abs(B.position.x),dy=Math.abs(B.position.y); if(Math.hypot(dx,dy)<.05)return 'Right angle';
+    return Math.abs(dx-dy)<.05?'Isosceles right triangle':'Right triangle'; }
+  function anchor(){ const b=B.position; const nx=Math.sign(b.y||1)*-.0; return new THREE.Vector3((b.x)/2 - Math.sign(b.x||1)*.4, (b.y)/2 + Math.sign(b.x||1)*.9, 0); }
+  return {grp,points:[B],baseScale:.7, termsHTML,typeWord,anchor,
+    get stage(){return stage;}, get sel(){return sel;},
+    drag(mesh,ip){ ip.z=0; ip.clampScalar(-9,9);
+      if(State.snap){ip.x=snapVal(ip.x);ip.y=snapVal(ip.y);} mesh.position.copy(ip); refresh(); },
+    release(){ burst(B.getWorldPosition(new THREE.Vector3())); },
+    refresh, liveHTML,
+    toggleSel(){ sel = sel==='O'?'P':'O'; refresh(); },
+    setStage(s){ stage=s; squares.visible=s>=2; if(s>=2)startX(); else stopX(); refresh(); },
+    show(v){ grp.visible=v; if(v){squares.visible=stage>=2; stage===2?startX():stopX(); refresh();} else stopX(); } };
+})();
+
+/* ===================================================================== MODE SWITCHING (the reorganization) */
+function setDimVisuals(dim){
+  controls.target.set(0,0,0); // clear any equation-focus offset when changing dimension
+  const tl=gsap.timeline();
+  // axes/grid visibility via scale (retract, never fade-only)
+  tl.to(axY.scale,{x:dim>=2?1:0,duration:Tdur.trans,ease:'power3.inOut'},0);
+  tl.to(axZ.scale,{x:dim>=3?1:0,duration:Tdur.trans,ease:'power3.inOut'},0);
+  tl.to(grid.material,{opacity:dim>=2?.25:0,duration:Tdur.trans},0);
+  tl.to(gridZ.material,{opacity:dim>=3?.18:0,duration:Tdur.trans},0);
+  lblY.visible=dim>=2; lblZ.visible=dim>=3;
+  // collapse point components when reducing dimension
+  if(dim<2) tl.to(sphere.position,{y:0,duration:Tdur.trans,ease:'power3.inOut',onUpdate:()=>{updateVector();renderCoord(true);}},0);
+  if(dim<3) tl.to(sphere.position,{z:0,duration:Tdur.trans,ease:'power3.inOut',onUpdate:()=>{updateVector();renderCoord(true);}},0);
+  State.dim=dim;
+  // camera framing — distance widens on portrait/narrow screens so the ±10 world fits (fixes "too zoomed in" on mobile)
+  const f=fitFactor();
+  if(dim<=2){ tl.to(camera.position,{x:0,y:0,z:(dim<=1?14:16)*f,duration:.9,ease:'power3.inOut',onUpdate:()=>camera.lookAt(target)},0); }
+  else { tl.to(camera.position,{x:10*f,y:8*f,z:12*f,duration:.9,ease:'power3.inOut',onUpdate:()=>camera.lookAt(target)},0); }
+  renderCoord(true);
+}
+function fitFactor(){ const a=innerWidth/innerHeight; return a<1 ? Math.min(2.1, 0.98/a) : 1; }
+function reframe(){ if(controls.enabled) return; const f=fitFactor(); // re-fit only when the camera isn't user-controlled
+  if(State.dim<=2) camera.position.set(0,0,(State.dim<=1?14:16)*f); else camera.position.set(10*f,8*f,12*f);
+  camera.lookAt(target); }
+function showMath(which){
+  angle.show(which==='ang'); pyth.show(which==='pyth');
+  const dimWorld = ['d0','d1','d2','d3'].includes(which);
+  const isPoint=which==='d0', isPyth=which==='pyth';
+  sphere.visible=dimWorld;
+  vectorLine.visible=dimWorld && State.vector && !isPoint;
+  // Point mode = just the point. Line = axis+ticks, no grid. Plane/Space full. Angles = clean. Distance = axes+grid for context.
+  axX.visible = dimWorld ? !isPoint : isPyth;
+  axY.visible = (which==='d2'||which==='d3'||isPyth);
+  axZ.visible = (which==='d3');
+  projMarkers.visible = (which==='d3');
+  updateGuides();
+  const paper = State.theme==='paper'; // in Pencil&Paper the page's own graph-paper IS the grid — hide the 3D grid to avoid a double grid
+  grid.visible = !isPoint && which!=='d1' && !paper;
+  gridZ.visible = which==='d3' && !paper;
+  ticks.visible = (which==='d1'||which==='d2'||which==='d3');
+  ticksY.visible = (which==='d2'||which==='d3');
+  ticksZ.visible = (which==='d3');
+  lblX.visible=axX.visible; lblY.visible=axY.visible; lblZ.visible=axZ.visible;
+  coordEl.style.opacity=dimWorld?1:0;
+  $('#inset').style.display=(which==='ang'&&State.explorer)?'block':'none';
+}
+
+function switchMode(mode){
+  if(mode===State.mode && mode.startsWith('d')) {}
+  const prev=State.mode; State.mode=mode; Sound.whoosh();
+  $$('#dock .card').forEach(c=>c.classList.toggle('on',c.dataset.mode===mode));
+  showMath(mode);
+  if(mode==='d0'){ setDimVisuals(1); sphere.visible=true; gsap.to(sphere.position,{x:0,y:0,z:0,duration:Tdur.trans,onUpdate:()=>{updateVector();renderCoord(true);}}); setBreadcrumb(0); }
+  if(mode==='d1'){ setDimVisuals(1); setBreadcrumb(1); }
+  if(mode==='d2'){ setDimVisuals(2); setBreadcrumb(2); }
+  if(mode==='d3'){ setDimVisuals(3); setBreadcrumb(3); }
+  if(mode==='ang'){ setDimVisuals(2); setBreadcrumb(2); }
+  if(mode==='pyth'){ setDimVisuals(2); setBreadcrumb(2); }
+  buildTools(); buildPosFields(); updateLiveMath(); renderCoord(true);
+  controls.enabled = State.explorer || ['d2','d3','ang','pyth'].includes(mode);
+  setIdle(mode==='d3'); // only Space gets the gentle 3D orbit; flat modes stay put
+}
+function setBreadcrumb(d){ $$('#breadcrumb .seg').forEach(s=>s.classList.toggle('on',+s.dataset.d===d)); }
+// idle orbit (and breathing) runs ONLY in 3D Space mode — full 360° rotation in flat modes was disorienting
+function setIdle(on){ if(reduced)return;
+  if(on){ idle.resume(); }
+  else { idle.pause(); gsap.to(universe.rotation,{y:0,duration:.6,ease:'power2.inOut'}); gsap.to(universe.scale,{x:1,y:1,z:1,duration:.6}); } }
+
+/* ===================================================================== PER-MODE TOOLS */
+function buildTools(){
+  const conts=[$('#tools'),$('#menu-tools')].filter(Boolean);
+  conts.forEach(cont=>{ cont.innerHTML='';
+    const add=(label,active,onclick,title,explorerOnly)=>{ const b=document.createElement('button');
+      b.className='tgl'+(active?' on':'')+(explorerOnly?' explorer-only':''); b.textContent=label;
+      if(title)b.title=title; b.onclick=onclick; cont.appendChild(b); };
+    // Snap toggle: only meaningful (and only shown) in Explorer — Child always snaps to whole numbers.
+    if(State.explorer && ['d1','d2','d3','pyth'].includes(State.mode))
+      add(State.snap?'Snap ✓':'Snap', State.snap, ()=>{State.snap=!State.snap;buildTools();}, 'Round the position to whole numbers on release');
+    if(['d2','d3'].includes(State.mode))
+      add(State.vector?'Vector ✓':'Vector', State.vector, ()=>{State.vector=!State.vector;vectorLine.visible=State.vector;updateVector();buildTools();}, 'Draw an arrow (vector) from the origin to the point');
+    if(State.mode==='ang'){ const uOn=$('#inset').style.display!=='none';
+      add(uOn?'Unit Circle ✓':'Unit Circle', uOn, ()=>{ const v=$('#inset').style.display==='none'; $('#inset').style.display=v?'block':'none'; if(v)updateUnitCircle(Math.PI/4); buildTools(); }, 'Show the same angle as a point on the unit circle', true); }
+    if(State.mode==='pyth'){
+      ['Playground','Triangle','Squares + Proof'].forEach((lbl,i)=>{
+        add(lbl, pyth.stage===i, ()=>{ pyth.setStage(i); if(i===2)revealFormula(); buildTools(); },
+          ['Free-drag the point and read the three lengths',
+           'Show the right triangle with labelled sides and the angle',
+           'Grow a square on each side and watch the two leg-areas pour into the big one'][i]);
+      });
+      add('Angle: '+(pyth.sel==='O'?'at Origin':'at Point'), false, ()=>{ pyth.toggleSel(); buildTools(); },
+        'Choose which angle is in question — the Base & Perpendicular labels follow your choice');
+    }
+  });
+  if(State.explorer) document.querySelectorAll('.explorer-only').forEach(e=>e.style.display='inline-flex');
+  const td=$('#tools'); if(td) td.style.display = td.children.length ? 'flex' : 'none'; // no empty frosted box
+  const std=$('#menu-tools'); if(std && !std.children.length) std.innerHTML='<div class="cap">No extra tools in this mode — just drag.</div>';
+}
+
+/* ===================================================================== FORMULA REVEAL */
+function revealFormula(){
+  const stages=['□+□=□','3²+4²=5²','9+16=25','a²+b²=c²'];
+  let i=0; const show=()=>{ if(i>=stages.length)return; celebrate(stages[i],css('--equation-neon')); i++; setTimeout(show,1800); };
+  show();
+}
+
+/* ===================================================================== EQUATION ENGINE */
+const eqState={active:false};
+const ALLOW=/^[\d\s.+\-*/^()xX,.piePIE a-z]*$/i; // allow-listed math chars/identifiers only (no arbitrary JS)
+let curveLine=null;
+function setHint(t){ const h=$('#eqhint'); if(h)h.textContent=t; }
+function syncEq(val,from){ ['#eqinput','#eqinput-m'].forEach(s=>{const e=$(s); if(e&&e!==from)e.value=val;}); }
+// Returns {kind:'fn'|'vline', pts:[...]} or null. Supports y=f(x), bare f(x), and x=constant (vertical line).
+function evaluateEquation(expr){
+  expr=(expr||'').trim(); if(!expr) return null;
+  let lhs='y', rhs=expr;
+  if(expr.includes('=')){ const i=expr.indexOf('='); lhs=expr.slice(0,i).trim().toLowerCase(); rhs=expr.slice(i+1).trim(); }
+  if(!ALLOW.test(rhs)) throw new Error('chars');
+  const code=math.parse(rhs).compile();
+  if(lhs==='x'){ const xv=code.evaluate({pi:Math.PI,e:Math.E}); if(typeof xv!=='number'||!isFinite(xv)) throw new Error('x');
+    return {kind:'vline',pts:[new THREE.Vector3(xv,-50,0),new THREE.Vector3(xv,50,0)],x:xv}; }
+  const pts=[]; for(let x=-35;x<=35.0001;x+=.1){ let y; try{ y=code.evaluate({x,pi:Math.PI,e:Math.E}); }catch{ throw new Error('eval'); }
+    if(typeof y!=='number'||!isFinite(y)) continue; pts.push(new THREE.Vector3(x,y,0)); }
+  if(pts.length<2) throw new Error('empty');
+  return {kind:'fn',pts};
+}
+function drawCurve(res){
+  if(curveLine){ world.remove(curveLine); curveLine.geometry.dispose(); curveLine.material.dispose(); curveLine=null; }
+  if(!res) return;
+  // a real tube so the curve reads BOLD (browsers ignore LineBasicMaterial linewidth)
+  const curve=new THREE.CatmullRomCurve3(res.pts);
+  const g=new THREE.TubeGeometry(curve, Math.max(24,res.pts.length*2), 0.09, 8, false);
+  const mat=new THREE.MeshStandardMaterial({color:C.neon,emissive:C.neon,emissiveIntensity:.9,roughness:.4,metalness:0});
+  curveLine=new THREE.Mesh(g,mat); world.add(curveLine);
+  if(!reduced){ curveLine.scale.set(1,1,0.01); gsap.to(curveLine.scale,{z:1,duration:.5,ease:'power2.out'});
+    gsap.fromTo(mat,{emissiveIntensity:1.6},{emissiveIntensity:.9,duration:.6}); }
+}
+// gently glide the camera to frame a freshly drawn line (a soft "look at this")
+function focusOnCurve(res){
+  const xs=res.pts.map(p=>p.x), ys=res.pts.map(p=>p.y);
+  const cx=(Math.min(...xs)+Math.max(...xs))/2, cy=(Math.min(...ys)+Math.max(...ys))/2;
+  const tx=cx*0.45, ty=Math.max(-6,Math.min(6,cy*0.6));
+  gsap.to(controls.target,{x:tx,y:ty,z:0,duration:.9,ease:'power2.inOut'});
+  gsap.to(camera.position,{x:tx*0.6,y:ty*0.8,z:Math.max(9,camera.position.z*0.86),duration:.9,ease:'power2.inOut'});
+}
+function handleEq(val,inputEl){
+  clearTimeout(handleEq._t);
+  handleEq._t=setTimeout(()=>{
+    if(!State.explorer){ inputEl&&inputEl.classList.add('bad'); setHint('Switch to Explorer mode to graph an equation.'); return; }
+    if(State.mode!=='d2') switchMode('d2'); // graphs live on the Plane — take the user there
+    if(!val.trim()){ drawCurve(null); eqState.active=false; inputEl&&inputEl.classList.remove('bad'); setHint('Type any y = f(x), or x = number.'); return; }
+    try{ const res=evaluateEquation(val); inputEl&&inputEl.classList.remove('bad'); drawCurve(res); focusOnCurve(res); eqState.active=true;
+      setHint((res.kind==='vline'?'Vertical line  ':'Graphing  ')+val.trim()); syncEq(val,inputEl); }
+    catch{ inputEl&&inputEl.classList.add('bad'); setHint('Not a valid equation yet — try y = x, y = x^2, or x = 4.'); }
+  },180);
+}
+$('#eqinput').addEventListener('input',e=>handleEq(e.target.value,e.target));
+const eqm=$('#eqinput-m'); if(eqm) eqm.addEventListener('input',e=>handleEq(e.target.value,e.target));
+$('#eqclear').onclick=()=>{ syncEq('',null); $('#eqinput').classList.remove('bad'); drawCurve(null); eqState.active=false;
+  gsap.to(controls.target,{x:0,y:0,z:0,duration:.6,ease:'power2.inOut'});
+  gsap.to(camera.position,{x:0,y:0,z:16*fitFactor(),duration:.6,ease:'power2.inOut'}); setHint('Cleared. Type any y = f(x), or x = number.'); };
+
+/* (Wonder Mode has been removed) */
+
+/* ===================================================================== UI WIRING */
+$$('#dock .card').forEach(c=>c.addEventListener('click',()=>switchMode(c.dataset.mode)));
+$('#breadcrumb').addEventListener('click',e=>{ const seg=e.target.closest('.seg'); if(seg)switchMode('d'+seg.dataset.d); });
+
+/* title / splash */
+$('#startbtn').onclick=()=>{ const t=$('#title'); t.classList.add('gone'); setTimeout(()=>{t.style.display='none';},900); };
+
+const themes=['cosmos','dark','light','paper'];
+const themeNames={cosmos:'Cosmos',dark:'Dark',light:'Light',paper:'Pencil & Paper'};
+$('#btn-theme').onclick=function(){ let i=themes.indexOf(State.theme); State.theme=themes[(i+1)%themes.length];
+  document.body.dataset.theme=State.theme; setTimeout(refreshColors,60); stars.visible=State.theme==='cosmos';
+  buildTicks(); showMath(State.mode); // recolor numerals (dark on light/paper) + re-evaluate grid visibility (Paper hides the 3D grid)
+  this.title='Theme: '+themeNames[State.theme]+' — tap to change'; };
+function refreshColors(){ C=COL();
+  originCore.material.color=C.gold; originCore.material.emissive=C.gold;
+  pointMatGlobal.uniforms.cx.value=C.x;pointMatGlobal.uniforms.cy.value=C.y;pointMatGlobal.uniforms.cz.value=C.z;pointMatGlobal.uniforms.cg.value=C.gold;
+  projX.material.color = C.x; projY.material.color = C.y; projZ.material.color = C.z; }
+
+$('#btn-sound').onclick=function(){ const on=Sound.toggle(); this.classList.toggle('on',on); this.textContent=on?'🔊':'🔇'; };
+$('#btn-share').onclick=function(){ const s={m:State.mode,p:State.pos.toArray().map(n=>+n.toFixed(2)),e:State.explorer};
+  location.hash=btoa(JSON.stringify(s)); navigator.clipboard?.writeText(location.href);
+  celebrate('🔗 Link copied'); };
+
+function setExplorer(on){ State.explorer=on;
+  if(!on) State.snap=true; // Child always snaps to whole numbers (no toggle shown)
+  document.body.classList.toggle('explorer',on);
+  $('#m-child').classList.toggle('on',!on); $('#m-explorer').classList.toggle('on',on);
+  $$('.modepill2 button').forEach(b=>b.classList.toggle('on',(b.dataset.exp==='1')===on));
+  $('#eqpanel').style.opacity=on?1:.5; $('#eqinput').disabled=!on; const em=$('#eqinput-m'); if(em)em.disabled=!on;
+  controls.enabled = on || ['d2','d3','ang','pyth'].includes(State.mode);
+  buildTools(); buildPosFields(); $('#inset').style.display=(State.mode==='ang'&&on)?'block':'none';
+  updateLiveMath();
+}
+$('#m-child').onclick=()=>setExplorer(false);
+$('#m-explorer').onclick=()=>setExplorer(true);
+
+/* mobile left menu */
+const leftmenu=$('#leftmenu'), scrim=$('#menuscrim');
+function openMenu(o){ leftmenu.classList.toggle('open',o); scrim.classList.toggle('open',o); }
+$('#menubtn').addEventListener('click',()=>openMenu(!leftmenu.classList.contains('open')));
+$('#menuscrim').addEventListener('click',()=>openMenu(false));
+$('#menuclose').addEventListener('click',()=>openMenu(false));
+$$('.modepill2 button').forEach(b=>b.addEventListener('click',()=>setExplorer(b.dataset.exp==='1')));
+
+/* restore share state */
+(function restore(){ if(!location.hash)return; try{ const s=JSON.parse(atob(location.hash.slice(1)));
+  if(s.e)setExplorer(true); if(s.m)switchMode(s.m); if(s.p){sphere.position.fromArray(s.p);State.pos.fromArray(s.p);} }catch{} })();
+
+/* ===================================================================== RESIZE */
+let rzT; addEventListener('resize',()=>{ clearTimeout(rzT); rzT=setTimeout(()=>{
+  camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth,innerHeight); renderer.setPixelRatio(Math.min(window.devicePixelRatio,isTouch?2:2.5));
+  reframe();
+},150); });
+if(window.visualViewport) visualViewport.addEventListener('resize',()=>{ /* keep canvas fixed; sheet uses CSS */ });
+
+/* ===================================================================== RENDER LOOP */
+const clock=new THREE.Clock();
+function loop(){ requestAnimationFrame(loop);
+  const dt=Math.min(clock.getDelta(),.05);
+  pointMatGlobal.uniforms.t.value+=dt*.4;
+  if(stars&&!reduced)stars.rotation.y+=dt*.005;
+  stepBursts(dt);
+  controls.update();
+  projectCoord();
+  updateTermBubble();
+  renderer.render(scene,camera);
+}
+loop();
+
+/* init (skip defaults if a shared-state hash already configured the scene) */
+if(!location.hash){ setExplorer(false); switchMode('d1'); }
+renderCoord(false); coordEl.style.opacity=1;
+updateLiveMath();
+$('#eqinput').disabled=!State.explorer;
+</script>
+</body>
+</html>
