@@ -56,6 +56,10 @@ canvas{display:block;}
 .glass h2{font-family:var(--ff-display);font-weight:600;font-size:20px;line-height:24px;margin:0 0 8px;}
 .cap{font-weight:600;font-size:13px;letter-spacing:.02em;color:var(--txt2);}
 .terms{margin-top:9px;padding-top:9px;border-top:1px solid var(--edge);font-family:var(--ff-ui);font-weight:600;font-size:12px;line-height:1.55;color:var(--txt2);}
+.dimcount{margin-top:9px;padding:7px 10px;border-radius:10px;background:var(--surf2);border:1px solid var(--edge);font-family:var(--ff-ui);font-weight:700;font-size:12.5px;line-height:1.5;color:var(--txt);}
+.dimcount .dc-n{display:inline-block;min-width:30px;padding:1px 7px;margin-right:4px;border-radius:999px;background:var(--origin-gold);color:#1B1E2B;font-family:var(--ff-mono);font-weight:800;font-size:12px;text-align:center;}
+/* centre-align all panel text */
+#livemath,#eqpanel,#tools,#lm-body,.terms,.dimcount,#leftmenu,#eqhint,.hint{text-align:center;}
 .terms b{color:var(--txt);font-weight:800;}
 
 /* breadcrumb */
@@ -97,7 +101,7 @@ canvas{display:block;}
 #coord .ch{display:inline-block;}
 
 /* celebration label */
-#celebrate{position:absolute;z-index:7;left:50%;top:42%;transform:translate(-50%,-50%);font-family:var(--ff-display);font-weight:700;font-size:clamp(22px,4vw,40px);color:var(--origin-gold);pointer-events:none;opacity:0;text-shadow:0 2px 20px rgba(255,201,74,.6);}
+#celebrate{position:absolute;z-index:7;left:50%;top:42%;transform:translate(-50%,-50%);width:max-content;max-width:min(88vw,640px);text-align:center;font-family:var(--ff-display);font-weight:700;font-size:clamp(22px,4vw,40px);color:var(--origin-gold);pointer-events:none;opacity:0;text-shadow:0 2px 20px rgba(255,201,74,.6);}
 
 /* unit-circle / mini inset host */
 #inset{right:14px;top:92px;width:168px;height:168px;padding:8px;display:none;}
@@ -112,6 +116,11 @@ canvas{display:block;}
 
 /* ghost hint */
 #ghost{position:absolute;z-index:4;left:50%;top:54%;transform:translate(-50%,-50%);font-family:var(--ff-display);font-weight:600;font-size:22px;color:var(--txt2);pointer-events:none;transition:opacity .6s;}
+#welcome{position:absolute;z-index:8;left:50%;bottom:120px;transform:translateX(-50%);max-width:min(420px,86vw);display:none;flex-direction:column;align-items:center;text-align:center;gap:7px;padding:16px 22px;border-radius:18px;}
+#welcome b{font-family:var(--ff-display);font-weight:700;}
+#welcome>b{font-size:19px;color:var(--txt);}
+#welcome span{font-family:var(--ff-ui);font-weight:600;font-size:13.5px;line-height:1.5;color:var(--txt2);}
+#welcome .cta{margin-top:3px;color:var(--origin-gold);}
 
 /* tool row (per-mode controls, bottom-left above livemath) */
 #tools{left:14px;bottom:14px;display:flex;gap:6px;flex-wrap:wrap;max-width:46vw;padding:8px;border-radius:18px;z-index:6;}
@@ -293,6 +302,11 @@ body.explorer .explorer-only{display:inline-flex;}
 
   <div id="coord" class="glass" style="opacity:0">0</div>
   <div id="termbubble"></div>
+  <div id="welcome" class="glass">
+    <b>👋 Welcome — meet the Point</b>
+    <span>A point is <b>0-dimensional</b>: a position with no length, width or depth.</span>
+    <span class="cta">Tap <b>Line</b>, <b>Plane</b> or <b>Space</b> below to grow it →</span>
+  </div>
   <div id="ghost">Drag me!</div>
   <div id="celebrate"></div>
 
@@ -487,7 +501,7 @@ function buildTicks(range=30){
 /* ===================================================================== STATE */
 const State = {
   mode:'d1', dim:1, explorer:false, snap:true, snapStep:1,
-  pos:new THREE.Vector3(5,0,0), vector:false, theme:'cosmos',
+  pos:new THREE.Vector3(5,0,0), vector:false, shape:false, theme:'cosmos',
   challenges:Number(localStorage.getItem('dgl_chal')||0)
 };
 buildTicks(); // after State exists (buildTicks reads State.theme)
@@ -524,6 +538,85 @@ function updateGuides(){
     projX.material.color = C.x; projY.material.color = C.y; projZ.material.color = C.z;
   }
 }
+
+/* ===================================================================== DIMENSION BUILDER
+   Sweeps the point into its shape — 1D segment · 2D rectangle · 3D cuboid — anchored at the origin.
+   The neon extrude handle (1D & 2D only) lets you TRY to pull the shape into the next dimension;
+   it rubber-bands back, teaching that a line has no width and a plane has no depth. */
+const builder=(()=>{
+  const grp=new THREE.Group(); grp.visible=false; world.add(grp);
+  const seg=new THREE.Mesh(new THREE.BoxGeometry(1,.16,.16),
+    new THREE.MeshStandardMaterial({color:C.x,emissive:C.x,emissiveIntensity:.5}));
+  const unitPlane=new THREE.PlaneGeometry(1,1), unitBox=new THREE.BoxGeometry(1,1,1);
+  const rectFill=new THREE.Mesh(unitPlane,new THREE.MeshBasicMaterial({color:C.y,transparent:true,opacity:.16,side:THREE.DoubleSide,depthWrite:false}));
+  const rectEdge=new THREE.LineSegments(new THREE.EdgesGeometry(unitPlane),new THREE.LineBasicMaterial({color:C.y}));
+  const boxFill=new THREE.Mesh(unitBox,new THREE.MeshBasicMaterial({color:C.z,transparent:true,opacity:.12,depthWrite:false}));
+  const boxEdge=new THREE.LineSegments(new THREE.EdgesGeometry(unitBox),new THREE.LineBasicMaterial({color:C.z}));
+  grp.add(seg,rectFill,rectEdge,boxFill,boxEdge);
+  // faded preview of the "next dimension" shape — only visible while pulling the handle
+  const ghost1=new THREE.Mesh(unitPlane,new THREE.MeshBasicMaterial({color:C.neon,transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false}));
+  const ghost2=new THREE.Mesh(unitBox,new THREE.MeshBasicMaterial({color:C.neon,transparent:true,opacity:0,depthWrite:false}));
+  ghost1.visible=ghost2.visible=false; grp.add(ghost1,ghost2);
+  // extrude handle — the grab affordance for "try the next dimension"
+  const exHandle=new THREE.Mesh(new THREE.ConeGeometry(.34,.8,20),
+    new THREE.MeshStandardMaterial({color:C.neon,emissive:C.neon,emissiveIntensity:.55}));
+  exHandle.userData.base=1; grp.add(exHandle);
+  // edge-length labels + area/volume read-out, floating on the shape
+  const lblA=makeLabel(C.x,.8), lblB=makeLabel(C.y,.8), lblC=makeLabel(C.z,.8), lblBig=makeLabel(C.gold,.85);
+  grp.add(lblA,lblB,lblC,lblBig);
+  let pull=0;
+  function labels(){
+    const p=sphere.position, d=State.dim;
+    const ax=Math.abs(p.x),ay=Math.abs(p.y),az=Math.abs(p.z);
+    const sx=p.x>=0?1:-1, sy=p.y>=0?1:-1, sz=p.z>=0?1:-1; // push labels to the FAR edges, clear of the origin axes + tick numbers
+    lblA.visible=lblB.visible=lblC.visible=lblBig.visible=false;
+    if(d===1){ lblA.visible=true; lblA.position.set(p.x/2,.72,0); lblA.userData.set('length '+fmt(ax),C.x); } // above the line; ticks sit below
+    else if(d===2){
+      lblA.visible=lblB.visible=lblBig.visible=true;
+      lblA.position.set(p.x/2, p.y+.65*sy, 0);   lblA.userData.set(fmt(ax),C.x);   // along the far (top) edge
+      lblB.position.set(p.x+.72*sx, p.y/2, 0);   lblB.userData.set(fmt(ay),C.y);   // along the far (right) edge
+      lblBig.position.set(p.x/2,p.y/2,.02);      lblBig.userData.set('Area '+fmt(ax*ay),C.gold);
+    } else if(d===3){
+      lblA.visible=lblB.visible=lblC.visible=lblBig.visible=true;
+      lblA.position.set(p.x/2, p.y+.45*sy, p.z+.45*sz); lblA.userData.set(fmt(ax),C.x); // three edges of the FAR corner
+      lblB.position.set(p.x+.45*sx, p.y/2, p.z+.45*sz); lblB.userData.set(fmt(ay),C.y);
+      lblC.position.set(p.x+.45*sx, p.y+.45*sy, p.z/2); lblC.userData.set(fmt(az),C.z);
+      lblBig.position.set(p.x/2,p.y/2,p.z/2);           lblBig.userData.set('Vol '+fmt(ax*ay*az),C.gold);
+    }
+  }
+  function update(){
+    if(!grp.visible) return;
+    const p=sphere.position, d=State.dim;
+    seg.visible=d===1; rectFill.visible=rectEdge.visible=d===2; boxFill.visible=boxEdge.visible=d===3;
+    if(d===1){ const L=Math.max(.001,Math.abs(p.x)); seg.scale.x=L; seg.position.set(p.x/2,0,0);
+      seg.material.color.copy(C.x); seg.material.emissive.copy(C.x); }
+    else if(d===2){ const w=Math.max(.001,Math.abs(p.x)),h=Math.max(.001,Math.abs(p.y));
+      rectFill.scale.set(w,h,1); rectFill.position.set(p.x/2,p.y/2,0); rectEdge.scale.copy(rectFill.scale); rectEdge.position.copy(rectFill.position);
+      rectFill.material.color.copy(C.y); rectEdge.material.color.copy(C.y); }
+    else if(d===3){ const w=Math.max(.001,Math.abs(p.x)),h=Math.max(.001,Math.abs(p.y)),dp=Math.max(.001,Math.abs(p.z));
+      boxFill.scale.set(w,h,dp); boxFill.position.set(p.x/2,p.y/2,p.z/2); boxEdge.scale.copy(boxFill.scale); boxEdge.position.copy(boxFill.position);
+      boxFill.material.color.copy(C.z); boxEdge.material.color.copy(C.z); }
+    labels();
+    exHandle.visible = grp.visible && d<3; // 3D cuboid is the terminal shape — no handle
+    if(exHandle.visible){ exHandle.material.color.copy(C.neon); exHandle.material.emissive.copy(C.neon);
+      if(d===1){ exHandle.position.set(p.x/2,.45+pull,0); exHandle.rotation.set(0,0,0); }
+      else { exHandle.position.set(p.x/2,p.y/2,.45+pull); exHandle.rotation.set(Math.PI/2,0,0); } }
+  }
+  function show(on){ grp.visible=on; if(!on){ pull=0; ghost1.visible=ghost2.visible=false; } update(); }
+  function extrudePull(dypx){ const t=Math.max(0,Math.min(1,dypx/140)); pull=t*1.6; const p=sphere.position,d=State.dim;
+    if(d===1){ ghost1.visible=true; ghost1.scale.set(Math.max(.001,Math.abs(p.x)),Math.max(.001,pull),1); ghost1.position.set(p.x/2,pull/2,0); ghost1.material.color.copy(C.neon); ghost1.material.opacity=.45*t; }
+    else { ghost2.visible=true; ghost2.scale.set(Math.max(.001,Math.abs(p.x)),Math.max(.001,Math.abs(p.y)),Math.max(.001,pull)); ghost2.position.set(p.x/2,p.y/2,pull/2); ghost2.material.color.copy(C.neon); ghost2.material.opacity=.35*t; }
+    update();
+  }
+  function extrudeRelease(){ const d=State.dim; const ob={v:pull};
+    gsap.to(ob,{v:0,duration:.7,ease:'elastic.out(1,0.45)',onUpdate:()=>{pull=ob.v;}});
+    gsap.to([ghost1.material,ghost2.material],{opacity:0,duration:.4,onComplete:()=>{ghost1.visible=ghost2.visible=false;}});
+    burst(exHandle.getWorldPosition(new THREE.Vector3()),C.neon);
+    celebrate(d===1?'A line has length only — no width here. Plane → adds Y'
+                   :'A plane has length × width — no depth here. Space → adds Z', css('--equation-neon'));
+  }
+  return { show, update, exHandle, extrudePull, extrudeRelease, on:()=>grp.visible };
+})();
 
 /* ===================================================================== COORDINATE BUBBLE */
 const coordEl=$('#coord');
@@ -570,9 +663,13 @@ function updatePosValues(){ $$('#posfields input').forEach(inp=>{ if(document.ac
 /* ===================================================================== DRAG (unified pointer) */
 const raycaster=new THREE.Raycaster(); raycaster.params.Points={threshold:.4};
 const ndc=new THREE.Vector2();
-let dragging=null, dragPlane=new THREE.Plane(), dragOff=new THREE.Vector3();
+let dragging=null, dragPlane=new THREE.Plane(), dragOff=new THREE.Vector3(), extrudeStart=0;
 const draggables=()=>{ // returns array of {mesh,onMove,axisLock}
-  if(['d1','d2','d3'].includes(State.mode)) return [{mesh:sphere}]; // Point (d0) is a fixed 0-D location
+  if(['d1','d2','d3'].includes(State.mode)){
+    const arr=[{mesh:sphere}]; // Point (d0) is a fixed 0-D location
+    if(builder.on() && State.dim<3) arr.push({mesh:builder.exHandle, extrude:true}); // "try the next dimension" handle
+    return arr;
+  }
   if(State.mode==='ang') return [{mesh:angle.handle}];
   if(State.mode==='pyth') return pyth.points.map(p=>({mesh:p}));
   return [];
@@ -600,16 +697,22 @@ function onDown(e){
   dismissGhost();
   // squash
   gsap.to(hit.mesh.scale,{x:hit.mesh.scale.x*1.08,y:hit.mesh.scale.y*.85,z:hit.mesh.scale.x*1.08,duration:Tdur.micro,ease:'power2.out'});
+  if(hit.extrude){ extrudeStart=e.clientY; e.preventDefault(); return; } // extrude uses screen-space pull (works in flat views)
   if(State.mode==='d3'){ guides.visible=true; }
-  // drag plane faces camera, through object
-  const n=camera.getWorldDirection(new THREE.Vector3()).negate();
-  dragPlane.setFromNormalAndCoplanarPoint(n,hit.mesh.getWorldPosition(new THREE.Vector3()));
+  // flat modes drag on the exact XY plane (so the 2D tilt can't distort it); 3D uses a camera-facing plane
+  if(['d1','d2'].includes(State.mode)){
+    dragPlane.setFromNormalAndCoplanarPoint(new THREE.Vector3(0,0,1),new THREE.Vector3(0,0,0));
+  } else {
+    const n=camera.getWorldDirection(new THREE.Vector3()).negate();
+    dragPlane.setFromNormalAndCoplanarPoint(n,hit.mesh.getWorldPosition(new THREE.Vector3()));
+  }
   const ip=new THREE.Vector3(); raycaster.ray.intersectPlane(dragPlane,ip);
   dragOff.copy(hit.mesh.position).sub(W2L(ip)); // offset in local space
   e.preventDefault();
 }
 function onMove(e){
   if(!dragging){ return; }
+  if(dragging.extrude){ builder.extrudePull(extrudeStart-e.clientY); return; } // upward drag = pull amount
   setNDC(e);
   const ip=new THREE.Vector3();
   if(!raycaster.ray.intersectPlane(dragPlane,ip)) return;
@@ -632,18 +735,20 @@ function applyDrag(mesh,ip){
 function snapVal(v){ return Math.round(v/State.snapStep)*State.snapStep; }
 function onUp(){
   if(!dragging){ return; }
+  const isExtrude=dragging.extrude;
   const mesh=dragging.mesh; const base=mesh.userData.base||1;
   gsap.to(mesh.scale,{x:base,y:base,z:base,duration:Tdur.micro,ease:'back.out(1.7)'});
-  if(['d0','d1','d2','d3'].includes(State.mode) && State.snap && sphere.userData.snapTo){
+  if(isExtrude){ builder.extrudeRelease(); Sound.pop(); }
+  else if(['d0','d1','d2','d3'].includes(State.mode) && State.snap && sphere.userData.snapTo){
     gsap.to(sphere.position,{x:sphere.userData.snapTo.x,y:sphere.userData.snapTo.y,z:sphere.userData.snapTo.z,duration:.28,ease:'power3.out',
       onUpdate:()=>{updateVector();updateGuides();renderCoord(false);},onComplete:()=>{burst(sphere.getWorldPosition(new THREE.Vector3()));}});
-  } else { burst(mesh.getWorldPosition(new THREE.Vector3())); }
-  Sound.pop();
+    Sound.pop();
+  } else { burst(mesh.getWorldPosition(new THREE.Vector3())); Sound.pop(); }
   clearCell();
   guides.visible=false;
   controls.enabled = State.explorer || ['d2','d3','ang','pyth'].includes(State.mode);
-  if(State.mode==='ang') angle.release();
-  if(State.mode==='pyth') pyth.release();
+  if(!isExtrude && State.mode==='ang') angle.release();
+  if(!isExtrude && State.mode==='pyth') pyth.release();
   dragging=null;
   if(State.mode==='d3'){ clearTimeout(idle._t); idle._t=setTimeout(()=>idle.resume(),3000); }
 }
@@ -727,6 +832,16 @@ function termsHTML(){ const p=sphere.position;
   return '';
 }
 /* ===================================================================== LIVE MATH */
+// counts the dimensions of the swept shape and names each measurement
+function dimCounterHTML(){
+  if(!State.shape || !['d1','d2','d3'].includes(State.mode)) return '';
+  const d=State.dim, p=sphere.position;
+  const names=['length','width','depth'].slice(0,d).join(' × ');
+  const shape=d===1?'Line segment':d===2?'Rectangle':'Cuboid';
+  const ax=Math.abs(p.x),ay=Math.abs(p.y),az=Math.abs(p.z);
+  const measure=d===1?`length = <b>${fmt(ax)}</b>`:d===2?`area = <b>${fmt(ax*ay)}</b>`:`volume = <b>${fmt(ax*ay*az)}</b>`;
+  return `<div class="dimcount"><span class="dc-n">${d}D</span> <b>${shape}</b><br>${names} · ${measure}</div>`;
+}
 function updateLiveMath(){
   const p=sphere.position; let html='';
   if(State.mode==='d1'||State.mode==='d0'){ html=`<div class="row">x = <b>${fmt(p.x)}</b></div>`; }
@@ -736,6 +851,7 @@ function updateLiveMath(){
     <div class="row">|r| = <b>${(Math.hypot(p.x,p.y,p.z)).toFixed(2)}</b></div>`; }
   else if(State.mode==='ang'){ html=angle.liveHTML(); }
   else if(State.mode==='pyth'){ html=pyth.liveHTML(); }
+  html += dimCounterHTML(); // after coordinates so the mobile info bar still reads the coordinate first
   html += termsHTML();
   $('#lm-body').innerHTML=html;
   // mobile bottom info bar: primary value + terminology headline
@@ -754,7 +870,10 @@ const angle=(()=>{
   // sector
   const sectorMat=new THREE.MeshBasicMaterial({color:C.neon,transparent:true,opacity:.28,side:THREE.DoubleSide,depthWrite:false});
   const sector=new THREE.Mesh(new THREE.BufferGeometry(),sectorMat);
-  const label=textSprite('0°',C.neon,1.1);
+  // wide canvas so long reverse-direction read-outs (e.g. "−540° (180°)") never crop
+  const label=(()=>{ const cv=document.createElement('canvas'); cv.width=448; cv.height=128;
+    const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(cv),transparent:true,depthTest:false}));
+    s.scale.set(3.85,1.1,1); s.userData.cv=cv; return s; })();
   grp.add(fixed,move,sector,handle,label);
   let ang=0, prevRaw=0, turns=0;
   function rayMesh(color,dim){ const g=new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(),new THREE.Vector3(7,0,0)]);
@@ -788,8 +907,8 @@ const angle=(()=>{
     label.position.set(4*Math.cos(mid),4*Math.sin(mid),0); updateLabel(txt);
     updateLiveMath(); updateUnitCircle(ang);
   }
-  function updateLabel(txt){ const cv=label.material.map.image,x=cv.getContext('2d'); cv.width=cv.width;
-    x.font='bold 56px JetBrains Mono';x.textAlign='center';x.textBaseline='middle';x.fillStyle='#'+C.neon.getHexString();x.fillText(txt,64,64);
+  function updateLabel(txt){ const cv=label.userData.cv,x=cv.getContext('2d'); x.clearRect(0,0,cv.width,cv.height);
+    x.font='bold 60px JetBrains Mono, monospace';x.textAlign='center';x.textBaseline='middle';x.fillStyle='#'+C.neon.getHexString();x.fillText(txt,cv.width/2,cv.height/2);
     label.material.map.needsUpdate=true; }
   function liveHTML(){ const deg=ang*180/Math.PI; const rad=ang;
     return `<div class="row">θ = <b>${(((deg%360)+360)%360).toFixed(1)}°</b></div>
@@ -946,13 +1065,17 @@ function setDimVisuals(dim){
   State.dim=dim;
   // camera framing — distance widens on portrait/narrow screens so the ±10 world fits (fixes "too zoomed in" on mobile)
   const f=fitFactor();
-  if(dim<=2){ tl.to(camera.position,{x:0,y:0,z:(dim<=1?14:16)*f,duration:.9,ease:'power3.inOut',onUpdate:()=>camera.lookAt(target)},0); }
-  else { tl.to(camera.position,{x:10*f,y:8*f,z:12*f,duration:.9,ease:'power3.inOut',onUpdate:()=>camera.lookAt(target)},0); }
+  if(dim<=1){ tl.to(camera.position,{x:0,y:0,z:14*f,duration:.9,ease:'power3.inOut',onUpdate:()=>camera.lookAt(target)},0); }
+  else if(dim===2){ const tilt=State.mode==='d2'; // Plane gets a gentle sideways tilt for depth; Angles/Distance stay flat
+    tl.to(camera.position,{x:tilt?4.5*f:0,y:tilt?3*f:0,z:(tilt?15:16)*f,duration:.9,ease:'power3.inOut',onUpdate:()=>camera.lookAt(target)},0); }
+  else { tl.to(camera.position,{x:11*f,y:7.5*f,z:12*f,duration:.9,ease:'power3.inOut',onUpdate:()=>camera.lookAt(target)},0); }
   renderCoord(true);
 }
 function fitFactor(){ const a=innerWidth/innerHeight; return a<1 ? Math.min(2.1, 0.98/a) : 1; }
 function reframe(){ if(controls.enabled) return; const f=fitFactor(); // re-fit only when the camera isn't user-controlled
-  if(State.dim<=2) camera.position.set(0,0,(State.dim<=1?14:16)*f); else camera.position.set(10*f,8*f,12*f);
+  if(State.dim<=1) camera.position.set(0,0,14*f);
+  else if(State.dim===2){ const tilt=State.mode==='d2'; camera.position.set(tilt?4.5*f:0,tilt?3*f:0,(tilt?15:16)*f); }
+  else camera.position.set(11*f,7.5*f,12*f);
   camera.lookAt(target); }
 function showMath(which){
   angle.show(which==='ang'); pyth.show(which==='pyth');
@@ -965,6 +1088,7 @@ function showMath(which){
   axY.visible = (which==='d2'||which==='d3'||isPyth);
   axZ.visible = (which==='d3');
   projMarkers.visible = (which==='d3');
+  builder.show(['d1','d2','d3'].includes(which) && State.shape);
   updateGuides();
   const paper = State.theme==='paper'; // in Pencil&Paper the page's own graph-paper IS the grid — hide the 3D grid to avoid a double grid
   grid.visible = !isPoint && which!=='d1' && !paper;
@@ -977,7 +1101,10 @@ function showMath(which){
   $('#inset').style.display=(which==='ang'&&State.explorer)?'block':'none';
 }
 
+function dismissWelcome(){ const w=$('#welcome'); if(w && w.style.display!=='none'){ gsap.to(w,{opacity:0,y:10,duration:.4,ease:'power2.in',onComplete:()=>{w.style.display='none';}}); } }
 function switchMode(mode){
+  if(mode!=='d0') dismissWelcome();
+  $('#ghost').style.display = mode==='d0' ? 'none' : ''; // nothing to drag in Point mode
   if(mode===State.mode && mode.startsWith('d')) {}
   const prev=State.mode; State.mode=mode; Sound.whoosh();
   $$('#dock .card').forEach(c=>c.classList.toggle('on',c.dataset.mode===mode));
@@ -1008,6 +1135,13 @@ function buildTools(){
     // Snap toggle: only meaningful (and only shown) in Explorer — Child always snaps to whole numbers.
     if(State.explorer && ['d1','d2','d3','pyth'].includes(State.mode))
       add(State.snap?'Snap ✓':'Snap', State.snap, ()=>{State.snap=!State.snap;buildTools();}, 'Round the position to whole numbers on release');
+    if(['d1','d2','d3'].includes(State.mode)){
+      const sName=State.mode==='d1'?'Line':State.mode==='d2'?'Area':'Cuboid';
+      add(State.shape?sName+' ✓':'Draw '+sName, State.shape, ()=>{State.shape=!State.shape; builder.show(['d1','d2','d3'].includes(State.mode)&&State.shape); buildTools(); updateLiveMath();},
+        State.mode==='d1'?'Sweep the point into a line — then try the neon handle to pull it upward':
+        State.mode==='d2'?'Sweep the point into a rectangle — try the neon handle to pull it into depth':
+        'Sweep the point into a cuboid (length × width × depth)');
+    }
     if(['d2','d3'].includes(State.mode))
       add(State.vector?'Vector ✓':'Vector', State.vector, ()=>{State.vector=!State.vector;vectorLine.visible=State.vector;updateVector();buildTools();}, 'Draw an arrow (vector) from the origin to the point');
     if(State.mode==='ang'){ const uOn=$('#inset').style.display!=='none';
@@ -1097,8 +1231,53 @@ $('#eqclear').onclick=()=>{ syncEq('',null); $('#eqinput').classList.remove('bad
 $$('#dock .card').forEach(c=>c.addEventListener('click',()=>switchMode(c.dataset.mode)));
 $('#breadcrumb').addEventListener('click',e=>{ const seg=e.target.closest('.seg'); if(seg)switchMode('d'+seg.dataset.d); });
 
-/* title / splash */
-$('#startbtn').onclick=()=>{ const t=$('#title'); t.classList.add('gone'); setTimeout(()=>{t.style.display='none';},900); };
+/* title / splash + fold-up intro (point → line → square → cube) */
+function showWelcome(){ const w=$('#welcome'); if(!w)return; w.style.display='flex'; gsap.fromTo(w,{opacity:0,y:14},{opacity:1,y:0,duration:.6,ease:'power2.out'}); }
+let introDone=false;
+function playIntro(){
+  if(introDone){ showWelcome(); return; } introDone=true;
+  const g=new THREE.Group(); world.add(g);
+  sphere.visible=false; controls.enabled=false;
+  const L=5, H=3.2, D=3.2;
+  const pt=makePoint(.8); g.add(pt); pt.scale.setScalar(0.001);
+  const line=new THREE.Mesh(new THREE.BoxGeometry(1,.18,.18), new THREE.MeshStandardMaterial({color:C.x,emissive:C.x,emissiveIntensity:.6,transparent:true,opacity:1}));
+  line.scale.x=.001; g.add(line);
+  const rect=new THREE.Mesh(new THREE.PlaneGeometry(1,1), new THREE.MeshBasicMaterial({color:C.y,transparent:true,opacity:0,side:THREE.DoubleSide,depthWrite:false}));
+  const rectE=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(1,1)), new THREE.LineBasicMaterial({color:C.y,transparent:true,opacity:0}));
+  const cube=new THREE.Mesh(new THREE.BoxGeometry(1,1,1), new THREE.MeshBasicMaterial({color:C.z,transparent:true,opacity:0,depthWrite:false}));
+  const cubeE=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.BoxGeometry(1,1,1)), new THREE.LineBasicMaterial({color:C.z,transparent:true,opacity:0}));
+  rect.scale.set(L,.001,1); rect.position.set(L/2,0,0); rectE.scale.copy(rect.scale); rectE.position.copy(rect.position);
+  cube.scale.set(L,H,.001); cube.position.set(L/2,H/2,0); cubeE.scale.copy(cube.scale); cubeE.position.copy(cube.position);
+  g.add(rect,rectE,cube,cubeE);
+  const cap=$('#celebrate'); const setCap=t=>{ cap.style.color=css('--origin-gold'); cap.textContent=t; gsap.fromTo(cap,{opacity:0,y:14,scale:.85},{opacity:1,y:0,scale:1,duration:.4,ease:'back.out(1.7)'}); };
+  gsap.to(camera.position,{x:8,y:5.5,z:11,duration:1.0,ease:'power2.inOut',onUpdate:()=>camera.lookAt(target)});
+  const tl=gsap.timeline({onComplete:()=>finishIntro(g,[line,rect,rectE,cube,cubeE],pt)});
+  tl.add(()=>setCap('Point · 0D'),0);
+  tl.fromTo(pt.scale,{x:0,y:0,z:0},{x:.8,y:.8,z:.8,duration:.5,ease:'back.out(2)'},.15);
+  tl.add(()=>{setCap('Line · 1D — length'); Sound.whoosh();},1.1);
+  tl.to(line.scale,{x:L,duration:.8,ease:'power3.out'},1.2).to(line.position,{x:L/2,duration:.8,ease:'power3.out'},1.2).to(pt.position,{x:L,duration:.8,ease:'power3.out'},1.2);
+  tl.add(()=>{setCap('Plane · 2D — + width'); Sound.whoosh();},2.3);
+  tl.to(rectE.material,{opacity:.9,duration:.3},2.3).to(rect.material,{opacity:.18,duration:.3},2.3)
+    .to([rect.scale,rectE.scale],{y:H,duration:.8,ease:'power3.out'},2.3).to([rect.position,rectE.position],{y:H/2,duration:.8,ease:'power3.out'},2.3).to(pt.position,{y:H,duration:.8,ease:'power3.out'},2.3);
+  tl.add(()=>{setCap('Space · 3D — + depth'); Sound.whoosh();},3.5);
+  tl.to(cubeE.material,{opacity:.9,duration:.3},3.5).to(cube.material,{opacity:.13,duration:.3},3.5)
+    .to([cube.scale,cubeE.scale],{z:D,duration:.9,ease:'power3.out'},3.5).to([cube.position,cubeE.position],{z:D/2,duration:.9,ease:'power3.out'},3.5).to(pt.position,{z:D,duration:.9,ease:'power3.out'},3.5);
+  tl.add(()=>setCap('Three dimensions ✦'),4.7);
+  tl.to({},{duration:.7},4.7);
+}
+function finishIntro(g,disposables,pt){
+  gsap.to($('#celebrate'),{opacity:0,duration:.5});
+  gsap.to(disposables.map(m=>m.material),{opacity:0,duration:.5,ease:'power2.in'});
+  gsap.to(pt.scale,{x:0,y:0,z:0,duration:.5,ease:'power2.in',onComplete:()=>{
+    disposables.forEach(m=>{ m.geometry.dispose(); m.material.dispose(); }); world.remove(g);
+    switchMode('d0'); setTimeout(showWelcome,650);
+  }});
+}
+$('#startbtn').onclick=()=>{ const t=$('#title'); t.classList.add('gone'); setTimeout(()=>{t.style.display='none';},900);
+  if(location.hash) return;            // shared state already configures the scene
+  if(reduced){ showWelcome(); return; } // honour reduced-motion: skip the animated intro
+  setTimeout(playIntro,950);
+};
 
 const themes=['cosmos','dark','light','paper'];
 const themeNames={cosmos:'Cosmos',dark:'Dark',light:'Light',paper:'Pencil & Paper'};
@@ -1156,6 +1335,7 @@ function loop(){ requestAnimationFrame(loop);
   pointMatGlobal.uniforms.t.value+=dt*.4;
   if(stars&&!reduced)stars.rotation.y+=dt*.005;
   stepBursts(dt);
+  builder.update();
   controls.update();
   projectCoord();
   updateTermBubble();
@@ -1164,7 +1344,7 @@ function loop(){ requestAnimationFrame(loop);
 loop();
 
 /* init (skip defaults if a shared-state hash already configured the scene) */
-if(!location.hash){ setExplorer(false); switchMode('d1'); }
+if(!location.hash){ setExplorer(false); switchMode('d0'); } // welcome appears after the fold-up intro (see #startbtn)
 renderCoord(false); coordEl.style.opacity=1;
 updateLiveMath();
 $('#eqinput').disabled=!State.explorer;
